@@ -26,6 +26,16 @@ geneos-toolkit = "0.1"  # Use the latest version available
 
 ## Usage
 
+- Uses the Builder pattern for easy instance initiation.
+- The row header is mandatory, set with `set_row_header`.
+- Headlines are optional and can be added with `add_headline`.
+- At least one value needs to be added to the Dataview, add with `add_value`.
+- Values are added in the format `row`, `column`, `value`.
+- Rows and Columns are implied in the values and ordered in the Dataview in the
+  order they were first introduced.
+- Environment variables can be retrieved with `get_var` or `get_secure_var`.
+- Secure variables require a key file path.
+
 ### Basic Example Dataview
 
 ```rust,no_run
