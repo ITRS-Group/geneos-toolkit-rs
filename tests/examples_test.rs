@@ -9,7 +9,7 @@ fn test_example(name: &str, expected_output: &str) {
 
     // Run the example
     let output = Command::new("cargo")
-        .args(&["run", "--example", name])
+        .args(["run", "--example", name])
         .output()
         .expect(&format!("Failed to execute example {}", name));
 
@@ -33,6 +33,16 @@ Process,Status,CPU,Memory
 <!>Example,Basic Dataview
 process1,Running,2.5%,150MB
 process2,Stopped,0.0%,0MB
+",
+        ),
+        (
+            "dataview_with_commas_in_cells",
+            "\
+Name,Age,Location
+<!>Example,Dataview with Commas
+Alice,30,Los Angeles\\, CA
+Bob,25,New York\\, NY
+Charlie,35,San Francisco\\, CA
 ",
         ),
         // ... Future examples should be added here as they are created
