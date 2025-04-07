@@ -48,11 +48,6 @@ pub fn get_var_or(name: &str, default: &str) -> String {
     env::var(name).unwrap_or_else(|_| default.to_string())
 }
 
-/// Retrieves an environment variable's value or returns an empty string if not set.
-pub fn get_var_or_empty(name: &str) -> String {
-    get_var_or(name, "")
-}
-
 /// Checks if a string slice is encrypted. Encrypted values start with "+encs+".
 ///
 /// # Arguments
@@ -266,7 +261,6 @@ iv=472A3557ADDD2525AD4E555738636A67
         with_var::<_, &str, _, _>("NON_EXISTENT_VAR", None, || {
             assert!(get_var("NON_EXISTENT_VAR").is_err());
             assert_eq!(get_var_or("NON_EXISTENT_VAR", "default"), "default");
-            assert_eq!(get_var_or_empty("NON_EXISTENT_VAR"), "");
         });
     }
 
