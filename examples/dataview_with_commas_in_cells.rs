@@ -1,13 +1,11 @@
 use geneos_toolkit::prelude::*;
 use std::error::Error;
 
-// Name,Age,Location
-// <!>Example,Dataview with Commas
-// Alice,30,Los Angeles\\, CA
-// Bob,25,New York\\, NY
-// Charlie,35,San Francisco\\, CA
 fn main() -> Result<(), Box<dyn Error>> {
-    // Create a simple dataview with process information
+    // Create a new Dataview containing a list of people with their ages and locations
+    // with commas in the location field.
+    //
+    // This example demonstrates how commas will be escaped in the dataview output.
     let dataview = Dataview::builder()
         .set_row_header("Name")
         .add_headline("Example", "Dataview with Commas")
