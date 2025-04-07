@@ -1,0 +1,28 @@
+[package]
+name = "geneos-toolkit"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+authors = ["Johan Thorén <jthoren@itrsgroup.com>"]
+readme = "README.md"
+repository = "https://github.com/ITRS-Group/geneos-toolkit-rs"
+keywords = ["geneos", "monitoring"]
+categories = ["command-line-utilities"]
+
+[[example]]
+name = "basic_dataview"
+path = "examples/basic_dataview.rs"
+
+[dependencies]
+aes = "0.8.4"
+cbc = {version = "0.1.2", features = ["alloc"]}
+cipher = "0.4.4"
+hex = "0.4.3"
+thiserror = "2.0.12"
+
+[dev-dependencies]
+pretty_assertions = "1.4.1"
+chrono = "0.4.40"
+hostname = "0.4.0"
+temp-env = "0.3.6"
+tempfile = "3.19.1"
