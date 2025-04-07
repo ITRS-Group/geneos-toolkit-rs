@@ -419,7 +419,7 @@ queue3,7\\,331,45\\,000,0.16,online";
         assert_eq!(dataview.headlines.len(), 5); // 5 headlines
 
         // Assert column ordering is preserved
-        let expected_columns = vec![
+        let expected_columns = [
             "percentUtilisation",
             "percentUserTime",
             "percentKernelTime",

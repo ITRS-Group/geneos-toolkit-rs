@@ -11,7 +11,7 @@ fn test_example(name: &str, expected_output: &str) {
     let output = Command::new("cargo")
         .args(["run", "--example", name])
         .output()
-        .expect(&format!("Failed to execute example {}", name));
+        .unwrap_or_else(|_| panic!("Failed to execute example {}", name));
 
     assert!(output.status.success(), "Example {} failed to run", name);
 
@@ -60,14 +60,14 @@ fn test_all_examples_compile() {
     if let Ok(entries) = fs::read_dir("examples") {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.extension().map_or(false, |ext| ext == "rs") {
+            if path.extension().is_some_and(|ext| ext == "rs") {
                 if let Some(file_stem) = path.file_stem() {
                     if let Some(name) = file_stem.to_str() {
                         // Just check that the example compiles and runs without errors
                         let output = Command::new("cargo")
-                            .args(&["run", "--example", name])
+                            .args(["run", "--example", name])
                             .output()
-                            .expect(&format!("Failed to execute example {}", name));
+                            .unwrap_or_else(|_| panic!("Failed to execute example {}", name));
 
                         assert!(
                             output.status.success(),
