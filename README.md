@@ -1,5 +1,9 @@
 # geneos-toolkit-rs
 
+[![crates.io](https://img.shields.io/crates/v/geneos-toolkit.svg)](https://crates.io/crates/geneos-toolkit)
+[![Documentation](https://docs.rs/geneos-toolkit/badge.svg)](https://docs.rs/geneos-toolkit)
+[![Apache-2.0 licensed](https://img.shields.io/crates/l/geneos-toolkit.svg)](./LICENSE)
+
 **geneos-toolkit** is a Rust library for building Geneos Toolkit compatible
 applications. It provides utilities for creating structured Geneos Dataviews,
 handling environment variables (including encrypted ones), to simplify
