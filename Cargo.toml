@@ -8,6 +8,7 @@ readme = "README.md"
 repository = "https://github.com/ITRS-Group/geneos-toolkit-rs"
 keywords = ["geneos", "monitoring"]
 categories = ["command-line-utilities"]
+description = "Rust library for building Geneos Toolkit compatible applications"
 
 [[example]]
 name = "basic_dataview"
