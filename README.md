@@ -33,6 +33,7 @@ geneos-toolkit = "0.1"  # Use the latest version available
 - Values are added in the format `row`, `column`, `value`.
 - Rows and Columns are implied in the values and ordered in the Dataview in the
   order they were first introduced.
+- Headlines are ordered by the order in which they were added to the Dataview.
 - Environment variables can be retrieved with `get_var` or `get_secure_var`.
 - Secure variables require a key file path.
 
