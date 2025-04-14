@@ -41,9 +41,10 @@ pub enum DataviewError {
 pub struct Dataview {
     row_header: String,
     headlines: HashMap<String, String>,
+    headline_order: Vec<String>,
     values: HashMap<(String, String), String>,
-    columns: Vec<String>,
-    rows: Vec<String>,
+    column_order: Vec<String>,
+    row_order: Vec<String>,
 }
 
 impl Dataview {
@@ -55,16 +56,20 @@ impl Dataview {
         self.headlines.get(key)
     }
 
+    pub fn headline_order(&self) -> &[String] {
+        &self.headline_order
+    }
+
     pub fn value(&self, row: &str, column: &str) -> Option<&String> {
         self.values.get(&(row.to_string(), column.to_string()))
     }
 
-    pub fn columns(&self) -> &[String] {
-        &self.columns
+    pub fn column_order(&self) -> &[String] {
+        &self.column_order
     }
 
-    pub fn rows(&self) -> &[String] {
-        &self.rows
+    pub fn row_order(&self) -> &[String] {
+        &self.row_order
     }
 }
 
@@ -84,9 +89,15 @@ fn write_header_row(
     writeln!(f)
 }
 
-fn write_headlines(f: &mut fmt::Formatter<'_>, headlines: &HashMap<String, String>) -> fmt::Result {
-    for (name, value) in headlines {
-        writeln!(f, "<!>{},{}", escape_commas(name), escape_commas(value))?;
+fn write_headlines(
+    f: &mut fmt::Formatter<'_>,
+    headline_order: &[String],
+    headlines: &HashMap<String, String>,
+) -> fmt::Result {
+    for name in headline_order {
+        if let Some(value) = headlines.get(name) {
+            writeln!(f, "<!>{},{}", escape_commas(name), escape_commas(value))?;
+        }
     }
     Ok(())
 }
@@ -118,9 +129,9 @@ fn write_data_rows(
 
 impl fmt::Display for Dataview {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write_header_row(f, &self.row_header, &self.columns)?;
-        write_headlines(f, &self.headlines)?;
-        write_data_rows(f, &self.rows, &self.columns, &self.values)
+        write_header_row(f, &self.row_header, &self.column_order)?;
+        write_headlines(f, &self.headline_order, &self.headlines)?;
+        write_data_rows(f, &self.row_order, &self.column_order, &self.values)
     }
 }
 
@@ -150,8 +161,9 @@ pub struct DataviewBuilder {
     row_header: Option<String>,
     headlines: Option<HashMap<String, String>>,
     values: Option<HashMap<(String, String), String>>,
-    columns: Vec<String>, // for the purpose of ordering the columns
-    rows: Vec<String>,    // for the purpose of ordering the rows
+    headline_order: Vec<String>, // for the purpose of ordering the headlines
+    column_order: Vec<String>,   // for the purpose of ordering the columns
+    row_order: Vec<String>,      // for the purpose of ordering the rows
 }
 
 impl DataviewBuilder {
@@ -166,7 +178,13 @@ impl DataviewBuilder {
 
     pub fn add_headline<T: ToString>(mut self, key: &str, value: T) -> Self {
         let mut headlines: HashMap<String, String> = self.headlines.unwrap_or_default();
-        headlines.insert(key.to_string(), value.to_string());
+
+        let key_string = key.to_string();
+        if !self.headline_order.contains(&key_string) {
+            self.headline_order.push(key_string.clone());
+        }
+
+        headlines.insert(key_string, value.to_string());
         self.headlines = Some(headlines);
         self
     }
@@ -176,14 +194,14 @@ impl DataviewBuilder {
 
         // Track columns in order of insertion (if new)
         let column_string = column.to_string();
-        if !self.columns.contains(&column_string) {
-            self.columns.push(column_string.clone());
+        if !self.column_order.contains(&column_string) {
+            self.column_order.push(column_string.clone());
         }
 
         // Track rows in order of insertion (if new)
         let row_string = row.to_string();
-        if !self.rows.contains(&row_string) {
-            self.rows.push(row_string.clone());
+        if !self.row_order.contains(&row_string) {
+            self.row_order.push(row_string.clone());
         }
 
         values.insert((row_string, column_string), value.to_string());
@@ -198,7 +216,10 @@ impl DataviewBuilder {
     /// Headlines are optional.
     ///
     /// The order of the columns and rows is determined by the order in which they are added through
-    /// values using the `value` method.
+    /// values using the `add_value` method.
+    ///
+    /// The order of headlines is determined by the order in which they are added through the
+    /// `add_headline` method.
     ///
     /// Example:
     /// ```rust
@@ -222,9 +243,10 @@ impl DataviewBuilder {
         Ok(Dataview {
             row_header,
             headlines: self.headlines.unwrap_or_default(),
+            headline_order: self.headline_order,
             values,
-            columns: self.columns,
-            rows: self.rows,
+            column_order: self.column_order,
+            row_order: self.row_order,
         })
     }
 }
@@ -259,10 +281,10 @@ mod tests {
         assert_eq!(dataview.value("1", "Age"), Some(&"30".to_string()));
 
         // Test structure
-        assert_eq!(dataview.rows().len(), 1);
-        assert_eq!(dataview.columns().len(), 2);
-        assert!(dataview.columns().contains(&"Name".to_string()));
-        assert!(dataview.columns().contains(&"Age".to_string()));
+        assert_eq!(dataview.row_order().len(), 1);
+        assert_eq!(dataview.column_order().len(), 2);
+        assert!(dataview.column_order().contains(&"Name".to_string()));
+        assert!(dataview.column_order().contains(&"Age".to_string()));
 
         Ok(())
     }
@@ -282,6 +304,8 @@ ID,Name,Age
         // Test multiple rows and columns
         let multi_row_dataview = DataviewBuilder::new()
             .set_row_header("id")
+            // Ensure that headlines appear in the order in which they were added.
+            .add_headline("Baz", "Foo")
             .add_headline("AlertDetails", "this is red alert")
             .add_value("001", "name", "agila")
             .add_value("001", "status", "up")
@@ -293,6 +317,7 @@ ID,Name,Age
 
         let expected_output = "\
 id,name,status,Value
+<!>Baz,Foo
 <!>AlertDetails,this is red alert
 001,agila,up,97
 002,lawin,down,85";
@@ -409,12 +434,12 @@ queue3,7\\,331,45\\,000,0.16,online";
         let output = dataview.to_string();
 
         // Check structure
-        assert_eq!(dataview.rows().len(), 5); // 5 rows
-        assert!(dataview.rows().contains(&"Average_cpu".to_string()));
-        assert!(dataview.rows().contains(&"cpu_0".to_string()));
-        assert!(dataview.rows().contains(&"cpu_1".to_string()));
-        assert!(dataview.rows().contains(&"cpu_2".to_string()));
-        assert!(dataview.rows().contains(&"cpu_0_logical#1".to_string()));
+        assert_eq!(dataview.row_order().len(), 5); // 5 rows
+        assert_eq!(dataview.row_order()[0], "Average_cpu".to_string());
+        assert_eq!(dataview.row_order()[1], "cpu_0".to_string());
+        assert_eq!(dataview.row_order()[2], "cpu_1".to_string());
+        assert_eq!(dataview.row_order()[3], "cpu_2".to_string());
+        assert_eq!(dataview.row_order()[4], "cpu_0_logical#1".to_string());
 
         assert_eq!(dataview.headlines.len(), 5); // 5 headlines
 
@@ -429,8 +454,8 @@ queue3,7\\,331,45\\,000,0.16,online";
             "clockSpeed",
         ];
         for (idx, col) in expected_columns.iter().enumerate() {
-            if idx < dataview.columns().len() {
-                assert!(dataview.columns().contains(&col.to_string()));
+            if idx < dataview.column_order().len() {
+                assert!(dataview.column_order().contains(&col.to_string()));
             }
         }
 

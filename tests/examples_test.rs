@@ -45,6 +45,16 @@ Bob,25,New York\\, NY
 Charlie,35,San Francisco\\, CA
 ",
         ),
+        (
+            "dataview_with_multiple_headlines",
+            "\
+Process,Status
+<!>TotalProcesses,50
+<!>TotalCache,300
+<!>TotalMemory,1000
+Process 1,OK
+",
+        ),
         // ... Future examples should be added here as they are created
     ];
 
