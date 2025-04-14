@@ -251,6 +251,39 @@ impl DataviewBuilder {
     }
 }
 
+/// Prints the result of a Dataview operation and exits the program.
+///
+/// # Arguments
+/// - `dataview`: The `Result` of a Dataview operation, holding either a `Dataview` or a `DataviewError`.
+///
+/// # Returns
+/// - Exits the program with a status code of 0 if successful, or 1 if an error occurred.
+///
+/// # Example
+/// ```rust
+/// use geneos_toolkit::prelude::*;
+///
+/// let dataview = Dataview::builder()
+///    .set_row_header("ID")
+///    .add_headline("Total", "42")
+///    .add_value("1", "Name", "Alice")
+///    .build();
+///
+/// print_result_and_exit(dataview)
+/// ```
+pub fn print_result_and_exit(dataview: Result<Dataview, DataviewError>) -> ! {
+    match dataview {
+        Ok(v) => {
+            println!("{v}");
+            std::process::exit(0)
+        }
+        Err(e) => {
+            eprintln!("ERROR: {e}");
+            std::process::exit(1)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

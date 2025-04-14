@@ -1,7 +1,6 @@
 use geneos_toolkit::prelude::*;
-use std::error::Error;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> ! {
     // Create a simple dataview with process information
     let dataview = Dataview::builder()
         .set_row_header("Process")
@@ -12,9 +11,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .add_value("process2", "Status", "Stopped")
         .add_value("process2", "CPU", "0.0%")
         .add_value("process2", "Memory", "0MB")
-        .build()?;
+        .build();
 
-    // Print the dataview to stdout
-    println!("{}", dataview);
-    Ok(())
+    print_result_and_exit(dataview)
 }

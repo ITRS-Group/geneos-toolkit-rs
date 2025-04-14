@@ -33,6 +33,6 @@ pub mod dataview;
 pub mod env;
 
 pub mod prelude {
-    pub use crate::dataview::Dataview;
+    pub use crate::dataview::{print_result_and_exit, Dataview};
     pub use crate::env::{get_secure_var, get_secure_var_or, get_var, get_var_or};
 }

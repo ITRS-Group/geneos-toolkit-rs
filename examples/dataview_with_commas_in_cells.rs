@@ -1,7 +1,6 @@
 use geneos_toolkit::prelude::*;
-use std::error::Error;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> ! {
     // Create a new Dataview containing a list of people with their ages and locations
     // with commas in the location field.
     //
@@ -15,9 +14,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .add_value("Bob", "Location", "New York, NY")
         .add_value("Charlie", "Age", "35")
         .add_value("Charlie", "Location", "San Francisco, CA")
-        .build()?;
+        .build();
 
-    // Print the dataview to stdout
-    println!("{}", dataview);
-    Ok(())
+    print_result_and_exit(dataview)
 }
