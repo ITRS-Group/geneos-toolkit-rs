@@ -159,19 +159,19 @@ impl DataviewBuilder {
         Self::default()
     }
 
-    pub fn set_row_header(mut self, row_header: impl ToString) -> Self {
+    pub fn set_row_header(mut self, row_header: &str) -> Self {
         self.row_header = Some(row_header.to_string());
         self
     }
 
-    pub fn add_headline<S: ToString>(mut self, key: S, value: S) -> Self {
+    pub fn add_headline<T: ToString>(mut self, key: &str, value: T) -> Self {
         let mut headlines: HashMap<String, String> = self.headlines.unwrap_or_default();
         headlines.insert(key.to_string(), value.to_string());
         self.headlines = Some(headlines);
         self
     }
 
-    pub fn add_value<S: ToString>(mut self, row: S, column: S, value: S) -> Self {
+    pub fn add_value<T: ToString>(mut self, row: &str, column: &str, value: T) -> Self {
         let mut values: HashMap<(String, String), String> = self.values.unwrap_or_default();
 
         // Track columns in order of insertion (if new)
