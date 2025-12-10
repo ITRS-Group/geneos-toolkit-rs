@@ -11,7 +11,7 @@
 /// use geneos_toolkit::prelude::*;
 ///
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let clear_env_var = get_var_or("CLEAR_ENV_VAR", "Default");
+///     let clear_env_var = get_var_or("CLEAR_ENV_VAR", "Default")?;
 ///
 ///     let dataview = Dataview::builder()
 ///         .set_row_header("Process")
@@ -35,7 +35,5 @@ pub mod secure_env;
 
 pub mod prelude {
     pub use crate::dataview::{Dataview, Row, print_result_and_exit};
-    pub use crate::env::{
-        decrypt, get_secure_var, get_secure_var_or, get_var, get_var_or, is_encrypted,
-    };
+    pub use crate::env::{decrypt, get_secure_var, get_secure_var_or, get_var, get_var_or, is_encrypted};
 }

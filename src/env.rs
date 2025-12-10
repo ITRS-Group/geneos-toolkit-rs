@@ -57,12 +57,28 @@ impl Error for EnvError {
 
 /// Retrieves an environment variable's value.
 pub fn get_var(name: &str) -> Result<String, EnvError> {
-    Ok(env::var(name)?)
+    let val = env::var(name)?;
+    #[cfg(not(feature = "secure-env"))]
+    if is_encrypted(&val) {
+        return Err(EnvError::MissingSecureEnvSupport);
+    }
+    Ok(val)
 }
 
 /// Retrieves an environment variable's value or returns a default if not set.
-pub fn get_var_or(name: &str, default: &str) -> String {
-    env::var(name).unwrap_or_else(|_| default.to_string())
+/// Returns an error if the value is encrypted and secure support is disabled.
+pub fn get_var_or(name: &str, default: &str) -> Result<String, EnvError> {
+    match env::var(name) {
+        Ok(val) => {
+            #[cfg(not(feature = "secure-env"))]
+            if is_encrypted(&val) {
+                return Err(EnvError::MissingSecureEnvSupport);
+            }
+            Ok(val)
+        }
+        Err(env::VarError::NotPresent) => Ok(default.to_string()),
+        Err(e) => Err(EnvError::VarError(e)),
+    }
 }
 
 /// Checks if a string slice is encrypted. Encrypted values start with "+encs+".
@@ -116,12 +132,12 @@ mod tests {
     fn test_get_env() {
         with_var("TEST_VAR", Some("test_value"), || {
             assert_eq!(get_var("TEST_VAR").unwrap(), "test_value");
-            assert_eq!(get_var_or("TEST_VAR", "default"), "test_value");
+            assert_eq!(get_var_or("TEST_VAR", "default").unwrap(), "test_value");
         });
 
         with_var::<_, &str, _, _>("NON_EXISTENT_VAR", None, || {
             assert!(get_var("NON_EXISTENT_VAR").is_err());
-            assert_eq!(get_var_or("NON_EXISTENT_VAR", "default"), "default");
+            assert_eq!(get_var_or("NON_EXISTENT_VAR", "default").unwrap(), "default");
         });
     }
 
