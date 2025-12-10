@@ -1,4 +1,4 @@
-use crate::env::{get_var, is_encrypted, EnvError};
+use crate::env::{EnvError, get_var, is_encrypted};
 use cbc::Decryptor;
 use cipher::block_padding::Pkcs7;
 use cipher::{BlockDecryptMut, KeyIvInit};
@@ -38,9 +38,12 @@ fn parse_key_file(path: &str) -> Result<(String, String, String), EnvError> {
         }
     }
 
-    let salt = salt.ok_or_else(|| EnvError::KeyFileFormatError("Missing salt in key file".to_string()))?;
-    let key = key.ok_or_else(|| EnvError::KeyFileFormatError("Missing key in key file".to_string()))?;
-    let iv = iv.ok_or_else(|| EnvError::KeyFileFormatError("Missing iv in key file".to_string()))?;
+    let salt =
+        salt.ok_or_else(|| EnvError::KeyFileFormatError("Missing salt in key file".to_string()))?;
+    let key =
+        key.ok_or_else(|| EnvError::KeyFileFormatError("Missing key in key file".to_string()))?;
+    let iv =
+        iv.ok_or_else(|| EnvError::KeyFileFormatError("Missing iv in key file".to_string()))?;
 
     Ok((salt, key, iv))
 }
@@ -229,6 +232,7 @@ iv=472A3557ADDD2525AD4E555738636A67
 
     #[cfg(unix)]
     #[test]
+    #[ignore = "Mutates process env; run explicitly if needed"]
     fn test_get_secure_var_or_propagates_not_unicode() {
         use std::ffi::OsString;
         use std::os::unix::ffi::OsStringExt;

@@ -33,7 +33,10 @@ impl fmt::Display for EnvError {
             EnvError::VarError(e) => write!(f, "Environment variable error: {}", e),
             EnvError::IoError(e) => write!(f, "IO error: {}", e),
             EnvError::MissingSecureEnvSupport => {
-                write!(f, "Secure environment support is disabled (enable the 'secure-env' feature)")
+                write!(
+                    f,
+                    "Secure environment support is disabled (enable the 'secure-env' feature)"
+                )
             }
             #[cfg(feature = "secure-env")]
             EnvError::DecryptionFailed(msg) => write!(f, "Failed to decrypt: {}", msg),
@@ -114,7 +117,10 @@ mod tests {
 
         with_var::<_, &str, _, _>("NON_EXISTENT_VAR", None, || {
             assert!(get_var("NON_EXISTENT_VAR").is_err());
-            assert_eq!(get_var_or("NON_EXISTENT_VAR", "default").unwrap(), "default");
+            assert_eq!(
+                get_var_or("NON_EXISTENT_VAR", "default").unwrap(),
+                "default"
+            );
         });
     }
 
