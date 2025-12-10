@@ -19,7 +19,6 @@ aes = "0.8.4"
 cbc = {version = "0.1.2", features = ["alloc"]}
 cipher = "0.4.4"
 hex = "0.4.3"
-thiserror = "2.0.12"
 
 [dev-dependencies]
 pretty_assertions = "1.4.1"

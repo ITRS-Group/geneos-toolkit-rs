@@ -3,26 +3,51 @@ use cipher::block_padding::Pkcs7;
 use cipher::{BlockDecryptMut, KeyIvInit};
 use hex::FromHex;
 use std::env;
+use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Debug)]
 pub enum EnvError {
-    #[error("Environment variable error: {0}")]
-    VarError(#[from] env::VarError),
-
-    #[error("Failed to decrypt: {0}")]
+    VarError(env::VarError),
     DecryptionFailed(String),
-
-    #[error("Missing key file for decryption")]
     MissingKeyFile,
-
-    #[error("IO error: {0}")]
-    IoError(#[from] std::io::Error),
-
-    #[error("Key file format error: {0}")]
+    IoError(std::io::Error),
     KeyFileFormatError(String),
+}
+
+impl From<env::VarError> for EnvError {
+    fn from(err: env::VarError) -> Self {
+        EnvError::VarError(err)
+    }
+}
+
+impl From<std::io::Error> for EnvError {
+    fn from(err: std::io::Error) -> Self {
+        EnvError::IoError(err)
+    }
+}
+
+impl std::fmt::Display for EnvError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EnvError::VarError(e) => write!(f, "Environment variable error: {}", e),
+            EnvError::DecryptionFailed(msg) => write!(f, "Failed to decrypt: {}", msg),
+            EnvError::MissingKeyFile => write!(f, "Missing key file for decryption"),
+            EnvError::IoError(e) => write!(f, "IO error: {}", e),
+            EnvError::KeyFileFormatError(msg) => write!(f, "Key file format error: {}", msg),
+        }
+    }
+}
+
+impl Error for EnvError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            EnvError::VarError(e) => Some(e),
+            EnvError::IoError(e) => Some(e),
+            _ => None,
+        }
+    }
 }
 
 /// Retrieves an environment variable's value.

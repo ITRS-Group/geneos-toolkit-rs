@@ -1,14 +1,23 @@
 use std::collections::HashMap;
+use std::error::Error;
 use std::fmt;
-use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Debug)]
 pub enum DataviewError {
-    #[error("The Dataview must have a row header")]
     MissingRowHeader,
-    #[error("The Dataview must have at least one value")]
     MissingValue,
 }
+
+impl fmt::Display for DataviewError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DataviewError::MissingRowHeader => write!(f, "The Dataview must have a row header"),
+            DataviewError::MissingValue => write!(f, "The Dataview must have at least one value"),
+        }
+    }
+}
+
+impl Error for DataviewError {}
 
 /// A Geneos Dataview object.
 ///
