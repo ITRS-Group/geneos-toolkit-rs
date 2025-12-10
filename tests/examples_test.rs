@@ -55,6 +55,16 @@ Process,Status
 Process 1,OK
 ",
         ),
+        (
+            "files_iter",
+            "\
+file,kind,size_bytes
+<!>example,files_iter
+alpha.txt,file,1
+beta.log,file,2
+gamma.bin,file,3
+",
+        ),
         // ... Future examples should be added here as they are created
     ];
 

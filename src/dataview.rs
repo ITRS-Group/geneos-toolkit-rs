@@ -155,6 +155,31 @@ impl Dataview {
     }
 }
 
+/// A helper struct to build a row of data.
+///
+/// This allows constructing a row with multiple columns before adding it to the Dataview.
+#[derive(Debug, Clone, Default)]
+pub struct Row {
+    name: String,
+    cells: Vec<(String, String)>,
+}
+
+impl Row {
+    /// Creates a new Row with the given name (which becomes the row identifier).
+    pub fn new(name: impl ToString) -> Self {
+        Self {
+            name: name.to_string(),
+            cells: Vec::new(),
+        }
+    }
+
+    /// Adds a cell (column and value) to the row.
+    pub fn add_cell(mut self, column: impl ToString, value: impl ToString) -> Self {
+        self.cells.push((column.to_string(), value.to_string()));
+        self
+    }
+}
+
 /// A Builder for the `Dataview` struct.
 #[derive(Debug, Default, Clone)]
 pub struct DataviewBuilder {
@@ -206,6 +231,55 @@ impl DataviewBuilder {
 
         values.insert((row_string, column_string), value.to_string());
         self.values = Some(values);
+        self
+    }
+
+    /// Adds a complete row to the Dataview.
+    ///
+    /// This is a convenience method to add multiple values for the same row at once.
+    ///
+    /// # Example
+    /// ```
+    /// use geneos_toolkit::prelude::*;
+    ///
+    /// let row = Row::new("process1")
+    ///     .add_cell("Status", "Running")
+    ///     .add_cell("CPU", "2.5%");
+    ///
+    /// let dataview = Dataview::builder()
+    ///     .set_row_header("Process")
+    ///     .add_row(row)
+    ///     .build();
+    /// ```
+    pub fn add_row(mut self, row: Row) -> Self {
+        for (col, val) in row.cells {
+            self = self.add_value(&row.name, &col, &val);
+        }
+        self
+    }
+
+    /// Sorts rows in ascending order by row name. Opt-in; default is insertion order.
+    pub fn sort_rows(mut self) -> Self {
+        self.row_order.sort();
+        self
+    }
+
+    /// Sorts rows using a key selector. Opt-in; default is insertion order.
+    pub fn sort_rows_by<K, F>(mut self, mut f: F) -> Self
+    where
+        K: Ord,
+        F: FnMut(&str) -> K,
+    {
+        self.row_order.sort_by_key(|row| f(row));
+        self
+    }
+
+    /// Sorts rows using a custom comparator. Opt-in; default is insertion order.
+    pub fn sort_rows_with<F>(mut self, mut cmp: F) -> Self
+    where
+        F: FnMut(&str, &str) -> std::cmp::Ordering,
+    {
+        self.row_order.sort_by(|a, b| cmp(a, b));
         self
     }
 
@@ -529,4 +603,74 @@ queue3,7\\,331,45\\,000,0.16,online";
 
         Ok(())
     }
-}
+
+    #[test]
+    fn test_row_builder() -> Result<(), DataviewError> {
+        let row1 = Row::new("process1")
+            .add_cell("Status", "Running")
+            .add_cell("CPU", "2.5%");
+
+        let row2 = Row::new("process2")
+            .add_cell("Status", "Stopped")
+            .add_cell("CPU", "0.0%");
+
+        let dataview = Dataview::builder()
+            .set_row_header("Process")
+            .add_row(row1)
+            .add_row(row2)
+            .build()?;
+
+        let output = dataview.to_string();
+
+        assert!(output.contains("Process,Status,CPU"));
+        assert!(output.contains("process1,Running,2.5%"));
+        assert!(output.contains("process2,Stopped,0.0%"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_row_sorting_methods() -> Result<(), DataviewError> {
+        // Default: insertion order preserved
+        let default = Dataview::builder()
+            .set_row_header("id")
+            .add_value("b", "col", "1")
+            .add_value("a", "col", "1")
+            .add_value("c", "col", "1")
+            .build()?;
+        assert_eq!(default.row_order(), &["b", "a", "c"]);
+
+        // sort_rows: ascending by row name
+        let sorted = Dataview::builder()
+            .set_row_header("id")
+            .add_value("b", "col", "1")
+            .add_value("a", "col", "1")
+            .add_value("c", "col", "1")
+            .sort_rows()
+            .build()?;
+        assert_eq!(sorted.row_order(), &["a", "b", "c"]);
+
+        // sort_rows_by: custom key (length)
+        let by_len = Dataview::builder()
+            .set_row_header("id")
+            .add_row(Row::new("long").add_cell("v", "1"))
+            .add_row(Row::new("mid").add_cell("v", "1"))
+            .add_row(Row::new("s").add_cell("v", "1"))
+            .sort_rows_by(|name| name.len())
+            .build()?;
+        assert_eq!(by_len.row_order(), &["s", "mid", "long"]);
+
+        // sort_rows_with: custom comparator (reverse lexicographic)
+        let reversed = Dataview::builder()
+            .set_row_header("id")
+            .add_row(Row::new("alpha").add_cell("v", "1"))
+            .add_row(Row::new("beta").add_cell("v", "1"))
+            .add_row(Row::new("gamma").add_cell("v", "1"))
+            .sort_rows_with(|a, b| b.cmp(a))
+            .build()?;
+        assert_eq!(reversed.row_order(), &["gamma", "beta", "alpha"]);
+
+        Ok(())
+    }
+ }
+

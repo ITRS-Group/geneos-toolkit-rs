@@ -7,11 +7,13 @@
 **geneos-toolkit** is a Rust library for building Geneos Toolkit compatible
 applications. It provides utilities for creating structured Geneos Dataviews,
 handling environment variables (including encrypted ones), to simplify
-integration development.
+integration development. For the Geneos Toolkit plugin format and lifecycle,
+see the Geneos Toolkit docs: https://docs.itrsgroup.com/docs/geneos/current/collection/toolkit-plugin/index.html
 
 ## Features
 
 - **Dataviews:** Build and format Geneos Dataviews.
+- **Row Builder:** Construct rows via `Row` + `add_row` without repeating the row id.
 - **Secure Environment Variables:** Retrieve and decrypt environment variables
   seamlessly.
 
@@ -29,13 +31,37 @@ geneos-toolkit = "0.1"  # Use the latest version available
 - Uses the Builder pattern for easy instance initiation.
 - The row header is mandatory, set with `set_row_header`.
 - Headlines are optional and can be added with `add_headline`.
-- At least one value needs to be added to the Dataview, add with `add_value`.
-- Values are added in the format `row`, `column`, `value`.
-- Rows and Columns are implied in the values and ordered in the Dataview in the
-  order they were first introduced.
+- Add values with `add_value(row, column, value)`.
+- Add whole rows with `Row::new(...).add_cell(...).add_row(row)`.
+- Rows/columns keep insertion order by default; optional sorting is available via
+  `sort_rows()`, `sort_rows_by(...)`, or `sort_rows_with(...)`.
 - Headlines are ordered by the order in which they were added to the Dataview.
 - Environment variables can be retrieved with `get_var` or `get_secure_var`.
 - Secure variables require a key file path.
+
+### Dataview Layout (annotated)
+
+```text
++-------------+-----------------+-----------------+
+| row header  | column1         | column2         |  <-- header row (row header + column names)
++=============+=================+=================+
+| <!>headline1| value1          |                 |  <-- headline rows (metadata, prefixed with "<!>")
+| <!>headline2| value2          |                 |
++-------------+-----------------+-----------------+
+| rowA        | valA1           | valA2           |  <-- data rows (row name + cell values)
+| rowB        | valB1           | valB2           |
++-------------+-----------------+-----------------+
+```
+
+Rendered output for the same layout:
+
+```text
+row_header,column1,column2
+<!>headline1,value1
+<!>headline2,value2
+rowA,valA1,valA2
+rowB,valB1,valB2
+```
 
 ### Basic Example Dataview
 
@@ -65,6 +91,32 @@ fn main() -> ! {
         .build();
 
     print_result_and_exit(dataview)
+}
+```
+
+### Row Builder + Optional Sorting
+
+```rust,no_run
+use geneos_toolkit::prelude::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let row1 = Row::new("server-02")
+        .add_cell("cpu", "45%")
+        .add_cell("status", "active");
+    let row2 = Row::new("server-01")
+        .add_cell("cpu", "12%")
+        .add_cell("status", "idle");
+
+    let dataview = Dataview::builder()
+        .set_row_header("host")
+        .add_headline("region", "us-east-1")
+        .add_row(row1)
+        .add_row(row2)
+        .sort_rows() // opt-in: otherwise insertion order is kept
+        .build()?;
+
+    println!("{}", dataview);
+    Ok(())
 }
 ```
 
