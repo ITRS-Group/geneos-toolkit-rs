@@ -12,9 +12,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::write(dir_path.join("gamma.bin"), b"ccc")?;
 
     // Gather directory entries and sort to ensure stable output order.
-    let mut entries: Vec<_> = fs::read_dir(dir_path)?
-        .filter_map(|e| e.ok())
-        .collect();
+    let mut entries: Vec<_> = fs::read_dir(dir_path)?.filter_map(|e| e.ok()).collect();
     entries.sort_by_key(|e| e.file_name());
 
     // Build the dataview using the Row builder.

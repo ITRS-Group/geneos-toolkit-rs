@@ -15,9 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         builder = builder.add_row(row);
     }
 
-    let dataview = builder
-        .sort_rows_with(|a, b| b.cmp(a))
-        .build()?;
+    let dataview = builder.sort_rows_with(|a, b| b.cmp(a)).build()?;
 
     print_result_and_exit(Ok(dataview))
 }
