@@ -65,6 +65,16 @@ beta.log,file,2
 gamma.bin,file,3
 ",
         ),
+        (
+            "readme_iterative_rows",
+            "\
+host,status,cpu
+<!>source,inventory
+gamma,up,n/a
+beta,up,n/a
+alpha,up,n/a
+",
+        ),
         // ... Future examples should be added here as they are created
     ];
 
