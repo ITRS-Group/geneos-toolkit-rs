@@ -35,5 +35,7 @@ pub mod secure_env;
 
 pub mod prelude {
     pub use crate::dataview::{Dataview, Row, print_result_and_exit};
-    pub use crate::env::{decrypt, get_secure_var, get_secure_var_or, get_var, get_var_or, is_encrypted};
+    pub use crate::env::{get_var, get_var_or, is_encrypted};
+    #[cfg(feature = "secure-env")]
+    pub use crate::secure_env::{decrypt, get_secure_var, get_secure_var_or};
 }

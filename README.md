@@ -72,13 +72,8 @@ rowB,valB1,valB2
 ```rust,no_run
 use geneos_toolkit::prelude::*;
 
-fn main() -> ! {
-    let clear_env_var = get_var_or("CLEAR_ENV_VAR", "Default Value");
-    let secure_env_var =
-        get_secure_var("SECURE_ENV_VAR", "/path/to/key_file").unwrap_or_else(|e| {
-            eprintln!("{}", e);
-            std::process::exit(1)
-        });
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let clear_env_var = get_var_or("CLEAR_ENV_VAR", "Default Value")?;
 
     let dataview = Dataview::builder()
         .set_row_header("Process")
@@ -88,13 +83,13 @@ fn main() -> ! {
         )
         .add_headline("Timestamp", chrono::Utc::now().to_rfc3339())
         .add_headline("Clear Env Var", &clear_env_var)
-        .add_headline("Secure Env Var", &secure_env_var)
         .add_value("process1", "Status", "Running")
         .add_value("process1", "CPU", "2.5%")
         .add_value("process1", "Memory", "150MB")
-        .build();
+        .build()?;
 
-    print_result_and_exit(dataview)
+    println!("{}", dataview);
+    Ok(())
 }
 ```
 

@@ -86,43 +86,6 @@ pub fn is_encrypted(value: &str) -> bool {
     value.starts_with("+encs+")
 }
 
-#[cfg(feature = "secure-env")]
-pub use crate::secure_env::{decrypt, get_secure_var, get_secure_var_or};
-
-#[cfg(not(feature = "secure-env"))]
-pub fn decrypt(value: &str, _key_file: &str) -> Result<String, EnvError> {
-    if is_encrypted(value) {
-        Err(EnvError::MissingSecureEnvSupport)
-    } else {
-        Ok(value.to_string())
-    }
-}
-
-#[cfg(not(feature = "secure-env"))]
-pub fn get_secure_var(name: &str, _key_file: &str) -> Result<String, EnvError> {
-    let value = get_var(name)?;
-    if is_encrypted(&value) {
-        Err(EnvError::MissingSecureEnvSupport)
-    } else {
-        Ok(value)
-    }
-}
-
-#[cfg(not(feature = "secure-env"))]
-pub fn get_secure_var_or(name: &str, _key_file: &str, default: &str) -> Result<String, EnvError> {
-    match get_var(name) {
-        Ok(val) => {
-            if is_encrypted(&val) {
-                Err(EnvError::MissingSecureEnvSupport)
-            } else {
-                Ok(val)
-            }
-        }
-        Err(EnvError::VarError(_)) => Ok(default.to_string()),
-        Err(e) => Err(e),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
