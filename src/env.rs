@@ -56,6 +56,14 @@ impl Error for EnvError {
 }
 
 /// Retrieves an environment variable's value.
+/// Returns `MissingSecureEnvSupport` if the value is encrypted and `secure-env` is disabled.
+///
+/// # Example
+/// ```ignore
+/// use geneos_toolkit::env::get_var;
+/// std::env::set_var("PLAIN_EXAMPLE", "ok");
+/// assert_eq!(get_var("PLAIN_EXAMPLE").unwrap(), "ok");
+/// ```
 pub fn get_var(name: &str) -> Result<String, EnvError> {
     let val = env::var(name)?;
     #[cfg(not(feature = "secure-env"))]
@@ -67,6 +75,12 @@ pub fn get_var(name: &str) -> Result<String, EnvError> {
 
 /// Retrieves an environment variable's value or returns a default if not set.
 /// Returns an error if the value is encrypted and secure support is disabled.
+///
+/// # Example
+/// ```ignore
+/// use geneos_toolkit::env::get_var_or;
+/// assert_eq!(get_var_or("MISSING", "fallback").unwrap(), "fallback");
+/// ```
 pub fn get_var_or(name: &str, default: &str) -> Result<String, EnvError> {
     match env::var(name) {
         Ok(val) => {

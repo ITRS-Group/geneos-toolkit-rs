@@ -43,6 +43,8 @@ fn parse_key_file(path: &str) -> Result<(String, String, String), EnvError> {
     Ok((salt, key, iv))
 }
 
+/// Decrypts an encrypted value using AES-256-CBC with PKCS7 padding.
+/// Values not prefixed with `+encs+` are returned unchanged.
 pub fn decrypt(value: &str, key_file: &str) -> Result<String, EnvError> {
     if value.len() < 6 || !is_encrypted(value) {
         return Ok(value.to_string());
@@ -70,6 +72,7 @@ pub fn decrypt(value: &str, key_file: &str) -> Result<String, EnvError> {
         .map_err(|e| EnvError::DecryptionFailed(format!("Invalid UTF-8 in decrypted data: {}", e)))
 }
 
+/// Retrieves an environment variable and decrypts it if it is encrypted.
 pub fn get_secure_var(name: &str, key_file: &str) -> Result<String, EnvError> {
     let value = get_var(name)?;
     if is_encrypted(&value) {
@@ -79,6 +82,7 @@ pub fn get_secure_var(name: &str, key_file: &str) -> Result<String, EnvError> {
     }
 }
 
+/// Retrieves a secure environment variable, returning a default if it is missing.
 pub fn get_secure_var_or(name: &str, key_file: &str, default: &str) -> Result<String, EnvError> {
     match get_var(name) {
         Ok(val) => {

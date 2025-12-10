@@ -57,26 +57,43 @@ pub struct Dataview {
 }
 
 impl Dataview {
+    /// Returns the row header label for this dataview.
+    ///
+    /// # Example
+    /// ```
+    /// use geneos_toolkit::dataview::DataviewBuilder;
+    /// let view = DataviewBuilder::new()
+    ///     .set_row_header("Process")
+    ///     .add_value("proc1", "Status", "Running")
+    ///     .build()
+    ///     .unwrap();
+    /// assert_eq!(view.row_header(), "Process");
+    /// ```
     pub fn row_header(&self) -> &str {
         &self.row_header
     }
 
+    /// Returns a headline value by key, if present.
     pub fn headline(&self, key: &str) -> Option<&String> {
         self.headlines.get(key)
     }
 
+    /// Returns the headline keys in display order.
     pub fn headline_order(&self) -> &[String] {
         &self.headline_order
     }
 
+    /// Returns a cell value for the given row/column, if present.
     pub fn value(&self, row: &str, column: &str) -> Option<&String> {
         self.values.get(&(row.to_string(), column.to_string()))
     }
 
+    /// Returns the column names in display order.
     pub fn column_order(&self) -> &[String] {
         &self.column_order
     }
 
+    /// Returns the row names in display order.
     pub fn row_order(&self) -> &[String] {
         &self.row_order
     }
@@ -174,7 +191,7 @@ pub struct Row {
 }
 
 impl Row {
-    /// Creates a new Row with the given name (which becomes the row identifier).
+    /// Creates a new Row with the given name (row identifier).
     pub fn new(name: impl ToString) -> Self {
         Self {
             name: name.to_string(),
@@ -182,7 +199,7 @@ impl Row {
         }
     }
 
-    /// Adds a cell (column and value) to the row.
+    /// Adds a cell (column and value) to the row, preserving insertion order.
     pub fn add_cell(mut self, column: impl ToString, value: impl ToString) -> Self {
         self.cells.push((column.to_string(), value.to_string()));
         self
@@ -201,15 +218,18 @@ pub struct DataviewBuilder {
 }
 
 impl DataviewBuilder {
+    /// Creates a new, empty builder.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Sets the mandatory row header label.
     pub fn set_row_header(mut self, row_header: &str) -> Self {
         self.row_header = Some(row_header.to_string());
         self
     }
 
+    /// Adds or replaces a headline value. Order is preserved by first insert.
     pub fn add_headline<T: ToString>(mut self, key: &str, value: T) -> Self {
         let mut headlines: HashMap<String, String> = self.headlines.unwrap_or_default();
 
@@ -223,6 +243,7 @@ impl DataviewBuilder {
         self
     }
 
+    /// Adds a single cell value at `row`/`column`, recording insertion order.
     pub fn add_value<T: ToString>(mut self, row: &str, column: &str, value: T) -> Self {
         let mut values: HashMap<(String, String), String> = self.values.unwrap_or_default();
 
@@ -267,6 +288,7 @@ impl DataviewBuilder {
         self
     }
 
+    /// Sorts rows in ascending order by row name. Opt-in; default is insertion order.
     /// Sorts rows in ascending order by row name. Opt-in; default is insertion order.
     pub fn sort_rows(mut self) -> Self {
         self.row_order.sort();
@@ -354,6 +376,7 @@ impl DataviewBuilder {
 ///
 /// print_result_and_exit(dataview)
 /// ```
+/// Prints the dataview on success or an error on failure, then exits the process.
 pub fn print_result_and_exit(dataview: Result<Dataview, DataviewError>) -> ! {
     match dataview {
         Ok(v) => {
