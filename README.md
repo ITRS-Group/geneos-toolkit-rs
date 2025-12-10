@@ -14,8 +14,8 @@ see the Geneos Toolkit docs: https://docs.itrsgroup.com/docs/geneos/current/coll
 
 - **Dataviews:** Build and format Geneos Dataviews.
 - **Row Builder:** Construct rows via `Row` + `add_row` without repeating the row id.
-- **Secure Environment Variables (opt-in):** Enable the `secure-env` feature to retrieve and decrypt encrypted env vars.
-- **Lean by default:** Without `secure-env`, there are zero third-party runtime dependencies.
+- **Secure Environment Variables (feature-gated):** Enable `secure-env` to expose secure helpers (`decrypt`, `get_secure_var`, etc.) for encrypted env vars.
+- **Lean by default:** With `secure-env` disabled, secure helpers are absent and there are zero third-party runtime dependencies.
 
 ## Installation
 
@@ -40,8 +40,8 @@ geneos-toolkit = "0.2"
 - Rows/columns keep insertion order by default; optional sorting is available via
   `sort_rows()`, `sort_rows_by(...)`, or `sort_rows_with(...)`.
 - Headlines are ordered by the order in which they were added to the Dataview.
-- Environment variables can be retrieved with `get_var` or `get_secure_var`.
-- Secure variables require a key file path.
+- Environment variables: `get_var`/`get_var_or` always available; secure helpers (`get_secure_var`, `decrypt`) only with `secure-env`.
+- Secure variables require a key file path when `secure-env` is enabled.
 
 ### Dataview Layout (annotated)
 
@@ -148,14 +148,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Secure Environment Variables (opt-in)
+### Secure Environment Variables (feature-gated)
 
-Enable the `secure-env` feature to use the secure helpers:
+Enable the `secure-env` feature to add the secure helpers:
 
 ```toml
 [dependencies]
 geneos-toolkit = { version = "0.2", features = ["secure-env"] }
 ```
+
+This feature gates `decrypt`, `get_secure_var`, and related helpers.
 
 ```rust,no_run
 use geneos_toolkit::prelude::*;
@@ -167,7 +169,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-- If `secure-env` is disabled and the value is encrypted (prefixed with `+encs+`), `get_secure_var`/`decrypt` return an error pointing you to enable the feature.
+- Without `secure-env`, encrypted values (`+encs+`) make `get_var`/`get_var_or` return `MissingSecureEnvSupport`, and the secure helpers are not exposed.
 
 ## Contributing
 

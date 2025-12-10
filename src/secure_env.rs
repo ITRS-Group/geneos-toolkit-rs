@@ -4,10 +4,12 @@ use cipher::block_padding::Pkcs7;
 use cipher::{BlockDecryptMut, KeyIvInit};
 use hex::FromHex;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{self, BufRead, BufReader};
 
 fn parse_key_file(path: &str) -> Result<(String, String, String), EnvError> {
-    let file = File::open(path).map_err(|_| EnvError::MissingKeyFile)?;
+    let file = File::open(path).map_err(|err| {
+        EnvError::IoError(io::Error::new(err.kind(), format!("{}: {}", path, err)))
+    })?;
     let reader = BufReader::new(file);
 
     let mut salt = None;
@@ -92,7 +94,7 @@ pub fn get_secure_var_or(name: &str, key_file: &str, default: &str) -> Result<St
                 Ok(val)
             }
         }
-        Err(EnvError::VarError(_)) => Ok(default.to_string()),
+        Err(EnvError::VarError(std::env::VarError::NotPresent)) => Ok(default.to_string()),
         Err(e) => Err(e),
     }
 }
@@ -196,9 +198,78 @@ iv=472A3557ADDD2525AD4E555738636A67
     }
 
     #[test]
+    fn test_get_secure_var_or() {
+        let dir = tempdir().unwrap();
+        let key_file_path = dir.path().join("key-file");
+        {
+            let mut file = File::create(&key_file_path).unwrap();
+            writeln!(file, "{}", VALID_KEY_FILE_CONTENTS).unwrap();
+        }
+
+        with_var::<_, &str, _, _>("MISSING_VAR_OR", None, || {
+            let result = get_secure_var_or(
+                "MISSING_VAR_OR",
+                key_file_path.to_str().unwrap(),
+                "fallback",
+            );
+            assert!(result.is_ok());
+            assert_eq!(result.unwrap(), "fallback");
+        });
+
+        with_var("ENCRYPTED_VAR_OR", Some(ENCRYPTED_VAR_1), || {
+            let result = get_secure_var_or(
+                "ENCRYPTED_VAR_OR",
+                key_file_path.to_str().unwrap(),
+                "fallback",
+            );
+            assert!(result.is_ok());
+            assert_eq!(result.unwrap(), DECRYPTED_VAR_1.to_string());
+        });
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_get_secure_var_or_propagates_not_unicode() {
+        use std::ffi::OsString;
+        use std::os::unix::ffi::OsStringExt;
+
+        let dir = tempdir().unwrap();
+        let key_file_path = dir.path().join("key-file");
+        {
+            let mut file = File::create(&key_file_path).unwrap();
+            writeln!(file, "{}", VALID_KEY_FILE_CONTENTS).unwrap();
+        }
+
+        let bad_value = OsString::from_vec(vec![0xFF, 0xFE, 0xFD]);
+        unsafe {
+            std::env::set_var("BAD_UNICODE_VAR", bad_value);
+        }
+
+        let result = get_secure_var_or(
+            "BAD_UNICODE_VAR",
+            key_file_path.to_str().unwrap(),
+            "fallback",
+        );
+
+        assert!(matches!(
+            result,
+            Err(EnvError::VarError(std::env::VarError::NotUnicode(_)))
+        ));
+
+        unsafe {
+            std::env::remove_var("BAD_UNICODE_VAR");
+        }
+    }
+
+    #[test]
     fn test_decrypt_missing_keyfile() {
-        let result = decrypt(ENCRYPTED_VAR_1, "/non/existent/keyfile");
-        assert!(matches!(result, Err(EnvError::MissingKeyFile)));
+        let missing_path = "/non/existent/keyfile";
+        let result = decrypt(ENCRYPTED_VAR_1, missing_path);
+        if let Err(EnvError::IoError(e)) = result {
+            assert!(e.to_string().contains(missing_path));
+        } else {
+            panic!("Expected IoError for missing key file");
+        }
     }
 
     #[test]
