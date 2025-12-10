@@ -14,11 +14,15 @@ description = "Rust library for building Geneos Toolkit compatible applications"
 name = "basic_dataview"
 path = "examples/basic_dataview.rs"
 
+[features]
+default = []
+secure-env = ["aes", "cbc", "cipher", "hex"]
+
 [dependencies]
-aes = "0.8.4"
-cbc = {version = "0.1.2", features = ["alloc"]}
-cipher = "0.4.4"
-hex = "0.4.3"
+aes = { version = "0.8.4", optional = true }
+cbc = { version = "0.1.2", features = ["alloc"], optional = true }
+cipher = { version = "0.4.4", optional = true }
+hex = { version = "0.4.3", optional = true }
 
 [dev-dependencies]
 pretty_assertions = "1.4.1"

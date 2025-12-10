@@ -14,16 +14,20 @@ see the Geneos Toolkit docs: https://docs.itrsgroup.com/docs/geneos/current/coll
 
 - **Dataviews:** Build and format Geneos Dataviews.
 - **Row Builder:** Construct rows via `Row` + `add_row` without repeating the row id.
-- **Secure Environment Variables:** Retrieve and decrypt environment variables
-  seamlessly.
+- **Secure Environment Variables (opt-in):** Enable the `secure-env` feature to retrieve and decrypt encrypted env vars.
+- **Lean by default:** Without `secure-env`, there are zero third-party runtime dependencies.
 
 ## Installation
 
 Add the following to your `Cargo.toml`:
 
 ```toml
+# Lean default (no secure env, zero third-party runtime dependencies)
 [dependencies]
-geneos-toolkit = "0.1"  # Use the latest version available
+geneos-toolkit = "0.2"
+
+# Enable secure env helpers (adds crypto dependencies)
+# geneos-toolkit = { version = "0.2", features = ["secure-env"] }
 ```
 
 ## Usage
@@ -148,6 +152,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+### Secure Environment Variables (opt-in)
+
+Enable the `secure-env` feature to use the secure helpers:
+
+```toml
+[dependencies]
+geneos-toolkit = { version = "0.2", features = ["secure-env"] }
+```
+
+```rust,no_run
+use geneos_toolkit::prelude::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let secret = get_secure_var("MY_SECRET", "/path/to/keyfile")?;
+    println!("Secret: {}", secret);
+    Ok(())
+}
+```
+
+- If `secure-env` is disabled and the value is encrypted (prefixed with `+encs+`), `get_secure_var`/`decrypt` return an error pointing you to enable the feature.
 
 ## Contributing
 
