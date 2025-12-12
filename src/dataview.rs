@@ -99,8 +99,24 @@ impl Dataview {
     }
 }
 
-fn escape_commas(s: &str) -> String {
-    s.replace(",", "\\,")
+trait GeneosEscaping {
+    fn escape_nasty_chars(&self) -> String;
+}
+
+impl GeneosEscaping for str {
+    fn escape_nasty_chars(&self) -> String {
+        let mut output = String::with_capacity(self.len());
+        for c in self.chars() {
+            match c {
+                '\\' => output.push_str("\\\\"),
+                ',' => output.push_str("\\,"),
+                '\n' => output.push_str("\\n"),
+                '\r' => output.push_str("\\r"),
+                c => output.push(c),
+            }
+        }
+        output
+    }
 }
 
 fn write_header_row(
@@ -108,9 +124,9 @@ fn write_header_row(
     row_header: &str,
     columns: &[String],
 ) -> fmt::Result {
-    write!(f, "{}", escape_commas(row_header))?;
+    write!(f, "{}", row_header.escape_nasty_chars())?;
     for col in columns {
-        write!(f, ",{}", escape_commas(col))?;
+        write!(f, ",{}", col.escape_nasty_chars())?;
     }
     writeln!(f)
 }
@@ -122,7 +138,12 @@ fn write_headlines(
 ) -> fmt::Result {
     for name in headline_order {
         if let Some(value) = headlines.get(name) {
-            writeln!(f, "<!>{},{}", escape_commas(name), escape_commas(value))?;
+            writeln!(
+                f,
+                "<!>{},{}",
+                name.escape_nasty_chars(),
+                value.escape_nasty_chars()
+            )?;
         }
     }
     Ok(())
@@ -136,11 +157,11 @@ fn write_data_rows(
 ) -> fmt::Result {
     let number_of_rows = rows.len();
     for (i, row) in rows.iter().enumerate() {
-        write!(f, "{}", escape_commas(row))?;
+        write!(f, "{}", row.escape_nasty_chars())?;
         for col in columns {
             write!(f, ",")?;
             if let Some(value) = values.get(&(row.to_string(), col.to_string())) {
-                write!(f, "{}", escape_commas(value))?;
+                write!(f, "{}", value.escape_nasty_chars())?;
             }
         }
 
@@ -495,7 +516,7 @@ queue3,7\\,331,45\\,000,0.16,online";
         assert!(output.contains("special"));
         assert!(output.contains("<!>special\\,headline,headline value with\\, comma"));
         assert!(output.contains("testing: \"quotes\" & <symbols>"));
-        assert!(output.contains("multi-line\ntext"));
+        assert!(output.contains("multi-line\\ntext"));
 
         Ok(())
     }
@@ -703,5 +724,132 @@ queue3,7\\,331,45\\,000,0.16,online";
         assert_eq!(reversed.row_order(), &["gamma", "beta", "alpha"]);
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn test_escape_nasty_chars_no_newlines(s in "\\PC*") {
+            let escaped = s.escape_nasty_chars();
+            // The escaped string should not contain raw newlines as they break the protocol
+            prop_assert!(!escaped.contains('\n'));
+            prop_assert!(!escaped.contains('\r'));
+        }
+
+        #[test]
+        fn test_dataview_structure_integrity_with_newlines(
+            row_name in "[a-z]+",
+            col_name in "[a-z]+",
+            // Explicitly generate strings with newlines and commas
+            value in "([a-z]|\n|,|\r)*"
+        ) {
+            let res = Dataview::builder()
+                .set_row_header("row_id")
+                .add_value(&row_name, &col_name, &value)
+                .build();
+
+            prop_assert!(res.is_ok());
+            let view = res.unwrap();
+            let output = view.to_string();
+
+            let lines: Vec<&str> = output.lines().collect();
+
+            // Should have exactly 2 lines (header + 1 data row)
+            // If value contained \n and wasn't escaped, this will fail
+            prop_assert_eq!(lines.len(), 2,
+                "Output should have exactly 2 lines, found {}. Value was: {:?}",
+                lines.len(), value);
+
+            prop_assert!(lines[1].starts_with(&row_name));
+        }
+
+        #[test]
+        fn test_dataview_column_count_consistency(
+            row_header in "[a-z]+",
+            rows in proptest::collection::vec("[a-z]+", 1..10),
+            cols in proptest::collection::vec("[a-z]+", 1..10),
+            val in "\\PC*"
+        ) {
+            let mut builder = Dataview::builder().set_row_header(&row_header);
+
+            // Add values for every row/col combination
+            for r in &rows {
+                for c in &cols {
+                    builder = builder.add_value(r, c, &val);
+                }
+            }
+
+            let view = builder.build().unwrap();
+            let output = view.to_string();
+
+            for line in output.lines() {
+                // Skip headline lines
+                if line.starts_with("<!>") {
+                    continue;
+                }
+
+                // Let's count occurrences of "," that are NOT preceded by an ODD number of backslashes
+                // This is getting complicated to parse with regex/simple checks.
+                // A comma is a separator if it is NOT escaped.
+                // It is escaped if it is preceded by a backslash that is NOT itself escaped.
+
+                let mut raw_commas = 0;
+                let mut chars = line.chars().peekable();
+                let mut escaped = false;
+
+                while let Some(c) = chars.next() {
+                    if escaped {
+                        escaped = false;
+                    } else if c == '\\' {
+                        escaped = true;
+                    } else if c == ',' {
+                        raw_commas += 1;
+                    }
+                }
+
+                // The number of commas should be equal to the number of columns
+                // Example: row_header, col1, col2 -> 2 commas for 2 columns
+                // Example: row1, val1, val2 -> 2 commas for 2 columns
+
+                let actual_cols = view.column_order().len();
+
+                prop_assert_eq!(raw_commas, actual_cols,
+                    "Line has wrong number of columns: {}", line);
+            }
+        }
+
+        #[test]
+        fn test_headline_escaping(
+            key in "[a-z]+",
+            value in "([a-z]|\n|,|\r)*"
+        ) {
+            let view = Dataview::builder()
+                .set_row_header("id")
+                .add_headline(&key, &value)
+                .add_value("r", "c", "v")
+                .build()
+                .unwrap();
+
+            let output = view.to_string();
+            // Find the headline line
+            let headline_line = output.lines()
+                .find(|l| l.starts_with("<!>"))
+                .expect("Should have headline");
+
+            // Should be on one line
+            prop_assert!(!headline_line.contains('\n'));
+
+            // Should have exactly one unescaped comma separating key and value
+            let raw_commas = headline_line.match_indices(',')
+                .filter(|(idx, _)| *idx == 0 || headline_line.as_bytes()[idx-1] != b'\\')
+                .count();
+
+            prop_assert_eq!(raw_commas, 1, "Headline should have exactly 1 separator comma");
+        }
     }
 }
