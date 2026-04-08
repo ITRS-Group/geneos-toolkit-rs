@@ -1,6 +1,6 @@
 slug: fix-crate-metadata
 id: 6
-status: spec
+status: execute
 priority: low
 source: sub:security-hardening
 project: geneos-toolkit
@@ -31,10 +31,11 @@ artifacts:
   intake: intake/fix-crate-metadata.md
   research: null
   spec: specs/fix-crate-metadata.md
-  plan: null
+  plan: plans/fix-crate-metadata.md
   tasks: null
   improve: null
 
 history:
   - "2026-04-08 12:57: mined from security audit — I3, L7"
   - "2026-04-08 17:17: unblocked — add-zeroize-support done; skipped research → spec"
+  - "2026-04-08 17:18: plan complete — single-step execution"
