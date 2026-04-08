@@ -1,6 +1,6 @@
 slug: harden-crypto-module
 id: 4
-status: spec
+status: plan
 priority: normal
 source: sub:security-hardening
 project: geneos-toolkit
@@ -25,17 +25,18 @@ parent: security-hardening
 children: []
 
 worktree: null
-branch: null
+branch: spec/harden-crypto-module
 
 artifacts:
   intake: intake/harden-crypto-module.md
   research: research/harden-crypto-module.md
   spec: specs/harden-crypto-module.md
-  plan: null
-  tasks: null
+  plan: plans/harden-crypto-module.md
+  tasks: steps/harden-crypto-module/
   improve: null
 
 history:
   - "2026-04-08 12:57: mined from security audit — L1, L2, L3, I1, I2"
   - "2026-04-08: research complete — 10 changes across secure_env.rs and env.rs, medium complexity"
   - "2026-04-08: cut — spec drafted at specs/harden-crypto-module.md"
+  - "2026-04-08: forged — plan generated, branch set to spec/harden-crypto-module"
