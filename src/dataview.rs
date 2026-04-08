@@ -1023,7 +1023,10 @@ cache,degraded,45,7";
             .build()?;
 
         let output = dataview.to_string();
-        assert!(!output.contains('\0'), "Null bytes must not appear in output");
+        assert!(
+            !output.contains('\0'),
+            "Null bytes must not appear in output"
+        );
         // \0 is stripped, so "legitimate" and "<!>INJECTED" are concatenated
         assert!(output.contains("legitimate<!>INJECTED"));
 
