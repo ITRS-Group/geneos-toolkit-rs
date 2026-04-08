@@ -9,9 +9,9 @@ use zeroize::Zeroizing;
 
 const MAX_KEY_FILE_SIZE: u64 = 1024;
 
-fn parse_key_file(
-    path: &str,
-) -> Result<(Zeroizing<String>, Zeroizing<String>, Zeroizing<String>), EnvError> {
+type KeyComponents = (Zeroizing<String>, Zeroizing<String>, Zeroizing<String>);
+
+fn parse_key_file(path: &str) -> Result<KeyComponents, EnvError> {
     let meta = fs::metadata(path)
         .map_err(|err| EnvError::IoError(io::Error::new(err.kind(), "cannot open key file")))?;
 
