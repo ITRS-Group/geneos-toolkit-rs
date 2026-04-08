@@ -2,7 +2,6 @@ use std::env;
 use std::error::Error;
 use std::fmt;
 
-#[derive(Debug)]
 pub enum EnvError {
     VarError(env::VarError),
     IoError(std::io::Error),
@@ -13,6 +12,22 @@ pub enum EnvError {
     MissingKeyFile,
     #[cfg(feature = "secure-env")]
     KeyFileFormatError(String),
+}
+
+impl fmt::Debug for EnvError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EnvError::VarError(e) => f.debug_tuple("VarError").field(e).finish(),
+            EnvError::IoError(e) => f.debug_tuple("IoError").field(e).finish(),
+            EnvError::MissingSecureEnvSupport => write!(f, "MissingSecureEnvSupport"),
+            #[cfg(feature = "secure-env")]
+            EnvError::DecryptionFailed(_) => write!(f, "DecryptionFailed([REDACTED])"),
+            #[cfg(feature = "secure-env")]
+            EnvError::MissingKeyFile => write!(f, "MissingKeyFile"),
+            #[cfg(feature = "secure-env")]
+            EnvError::KeyFileFormatError(_) => write!(f, "KeyFileFormatError([REDACTED])"),
+        }
+    }
 }
 
 impl From<env::VarError> for EnvError {
