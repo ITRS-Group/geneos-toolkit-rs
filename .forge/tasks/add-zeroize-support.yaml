@@ -6,8 +6,8 @@ source: sub:security-hardening
 project: geneos-toolkit
 created: 2026-04-08
 updated: 2026-04-08
-blocked: "waiting for harden-crypto-module"
-flow_state: blocked
+blocked: false
+flow_state: active
 owner: null
 block_reason: "initiative ordering: harden-crypto-module must complete first"
 unblock_trigger: "harden-crypto-module reaches done"
