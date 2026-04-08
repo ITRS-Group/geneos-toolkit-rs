@@ -1,6 +1,6 @@
 slug: harden-crypto-module
 id: 4
-status: improve
+status: done
 priority: normal
 source: sub:security-hardening
 project: geneos-toolkit
@@ -20,7 +20,7 @@ attempts: 0
 auto_close_issue: true
 source_issue_number: null
 source_repo: ITRS-Group/geneos-toolkit-rs
-resolution: null
+resolution: completed
 parent: security-hardening
 children: []
 
@@ -42,3 +42,4 @@ history:
   - "2026-04-08: forged — plan generated, branch set to spec/harden-crypto-module"
   - "2026-04-08: executing — Phase 0 approved, execution started"
   - "2026-04-08: hardened — execution complete, 4 tasks, 4 commits"
+  - "2026-04-08: done — merged to master, branch cleaned"
