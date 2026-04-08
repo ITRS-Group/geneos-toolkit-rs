@@ -54,7 +54,7 @@ impl fmt::Display for EnvError {
                 )
             }
             #[cfg(feature = "secure-env")]
-            EnvError::DecryptionFailed(msg) => write!(f, "Failed to decrypt: {}", msg),
+            EnvError::DecryptionFailed(_) => write!(f, "decryption failed"),
             #[cfg(feature = "secure-env")]
             EnvError::MissingKeyFile => write!(f, "Missing key file for decryption"),
             #[cfg(feature = "secure-env")]

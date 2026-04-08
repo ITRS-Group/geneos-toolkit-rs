@@ -101,7 +101,7 @@ pub fn decrypt(value: &str, key_file: &str) -> Result<String, EnvError> {
 
     let hex = &value[6..];
     if hex.is_empty() {
-        return Err(EnvError::DecryptionFailed("empty ciphertext".to_string()));
+        return Err(EnvError::DecryptionFailed("decryption failed".to_string()));
     }
 
     let mut encrypted_bytes = Vec::from_hex(hex)
@@ -442,11 +442,9 @@ iv=472A3557ADDD2525AD4E555738636A67
         write_key_file(&key_file_path, VALID_KEY_FILE_CONTENTS);
         let result = decrypt("+encs+", key_file_path.to_str().unwrap());
         let err = result.expect_err("expected error for empty ciphertext");
+        assert!(matches!(err, EnvError::DecryptionFailed(_)));
         let msg = format!("{}", err);
-        assert!(
-            msg.contains("empty ciphertext"),
-            "expected 'empty ciphertext' in error, got: {msg}"
-        );
+        assert_eq!(msg, "decryption failed", "empty ciphertext must be opaque");
     }
 
     #[test]
@@ -456,7 +454,7 @@ iv=472A3557ADDD2525AD4E555738636A67
         write_key_file(&key_file_path, VALID_KEY_FILE_CONTENTS);
         // Invalid hex should produce an opaque error, not leak hex library details
         let result = decrypt("+encs+ZZ", key_file_path.to_str().unwrap());
-        if let Err(EnvError::DecryptionFailed(inner)) = result {
+        if let Err(EnvError::DecryptionFailed(ref inner)) = result {
             assert_eq!(
                 inner, "decryption failed",
                 "inner message must be opaque, got: {inner}"
@@ -464,6 +462,12 @@ iv=472A3557ADDD2525AD4E555738636A67
         } else {
             panic!("expected DecryptionFailed variant");
         }
+        // Display must also be opaque
+        let msg = format!("{}", result.unwrap_err());
+        assert_eq!(
+            msg, "decryption failed",
+            "Display must be opaque, got: {msg}"
+        );
     }
 
     #[test]
