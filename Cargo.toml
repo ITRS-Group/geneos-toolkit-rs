@@ -2,12 +2,13 @@
 name = "geneos-toolkit"
 version = "0.4.0"
 edition = "2024"
+rust-version = "1.85"
 license = "Apache-2.0"
 authors = ["Johan Thorén <jthoren@itrsgroup.com>"]
 readme = "README.md"
 repository = "https://github.com/ITRS-Group/geneos-toolkit-rs"
 keywords = ["geneos", "monitoring"]
-categories = ["command-line-utilities"]
+categories = ["api-bindings"]
 description = "Rust library for building Geneos Toolkit compatible applications"
 
 [[example]]
