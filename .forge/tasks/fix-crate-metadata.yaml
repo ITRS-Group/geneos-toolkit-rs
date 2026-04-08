@@ -1,16 +1,16 @@
 slug: fix-crate-metadata
 id: 6
-status: intake
+status: spec
 priority: low
 source: sub:security-hardening
 project: geneos-toolkit
 created: 2026-04-08
 updated: 2026-04-08
-blocked: "waiting for add-zeroize-support"
-flow_state: blocked
+blocked: false
+flow_state: active
 owner: null
-block_reason: "initiative ordering: add-zeroize-support must complete first"
-unblock_trigger: "add-zeroize-support reaches done"
+block_reason: null
+unblock_trigger: null
 park_reason: null
 revisit_trigger: null
 serialization_mode: parallel
@@ -30,10 +30,11 @@ branch: null
 artifacts:
   intake: intake/fix-crate-metadata.md
   research: null
-  spec: null
+  spec: specs/fix-crate-metadata.md
   plan: null
   tasks: null
   improve: null
 
 history:
   - "2026-04-08 12:57: mined from security audit — I3, L7"
+  - "2026-04-08 17:17: unblocked — add-zeroize-support done; skipped research → spec"
