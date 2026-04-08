@@ -38,4 +38,6 @@ pub mod prelude {
     pub use crate::env::{get_var, get_var_or, is_encrypted};
     #[cfg(feature = "secure-env")]
     pub use crate::secure_env::{decrypt, get_secure_var, get_secure_var_or};
+    #[cfg(feature = "secure-env")]
+    pub use zeroize::Zeroizing;
 }

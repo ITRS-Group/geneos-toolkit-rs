@@ -5,10 +5,13 @@ use cipher::{BlockDecryptMut, KeyIvInit};
 use hex::FromHex;
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader};
+use zeroize::Zeroizing;
 
 const MAX_KEY_FILE_SIZE: u64 = 1024;
 
-fn parse_key_file(path: &str) -> Result<(String, String, String), EnvError> {
+fn parse_key_file(
+    path: &str,
+) -> Result<(Zeroizing<String>, Zeroizing<String>, Zeroizing<String>), EnvError> {
     let meta = fs::metadata(path)
         .map_err(|err| EnvError::IoError(io::Error::new(err.kind(), "cannot open key file")))?;
 
@@ -32,12 +35,12 @@ fn parse_key_file(path: &str) -> Result<(String, String, String), EnvError> {
         .map_err(|err| EnvError::IoError(io::Error::new(err.kind(), "cannot open key file")))?;
     let reader = BufReader::new(file);
 
-    let mut salt = None;
-    let mut key = None;
-    let mut iv = None;
+    let mut salt: Option<Zeroizing<String>> = None;
+    let mut key: Option<Zeroizing<String>> = None;
+    let mut iv: Option<Zeroizing<String>> = None;
 
     for (line_num, line_result) in reader.lines().enumerate() {
-        let line = line_result.map_err(EnvError::IoError)?;
+        let line = Zeroizing::new(line_result.map_err(EnvError::IoError)?);
         let line_num = line_num + 1;
 
         if line.trim().is_empty() {
@@ -51,7 +54,7 @@ fn parse_key_file(path: &str) -> Result<(String, String, String), EnvError> {
                         "duplicate salt in key file".to_string(),
                     ));
                 }
-                salt = Some(value.to_string());
+                salt = Some(Zeroizing::new(value.to_string()));
             }
             Some(("key", value)) => {
                 if key.is_some() {
@@ -59,7 +62,7 @@ fn parse_key_file(path: &str) -> Result<(String, String, String), EnvError> {
                         "duplicate key in key file".to_string(),
                     ));
                 }
-                key = Some(value.to_string());
+                key = Some(Zeroizing::new(value.to_string()));
             }
             Some(("iv", value)) => {
                 if iv.is_some() {
@@ -67,7 +70,7 @@ fn parse_key_file(path: &str) -> Result<(String, String, String), EnvError> {
                         "duplicate iv in key file".to_string(),
                     ));
                 }
-                iv = Some(value.to_string());
+                iv = Some(Zeroizing::new(value.to_string()));
             }
             Some((_, _)) => {
                 return Err(EnvError::KeyFileFormatError(format!(
@@ -94,9 +97,12 @@ fn parse_key_file(path: &str) -> Result<(String, String, String), EnvError> {
 
 /// Decrypts an encrypted value using AES-256-CBC with PKCS7 padding.
 /// Values not prefixed with `+encs+` are returned unchanged.
-pub fn decrypt(value: &str, key_file: &str) -> Result<String, EnvError> {
+///
+/// Returns `Zeroizing<String>` so the decrypted secret is automatically
+/// zeroed when dropped. Callers can still use `&str` via auto-deref.
+pub fn decrypt(value: &str, key_file: &str) -> Result<Zeroizing<String>, EnvError> {
     if !is_encrypted(value) {
-        return Ok(value.to_string());
+        return Ok(Zeroizing::new(value.to_string()));
     }
 
     let hex = &value[6..];
@@ -104,50 +110,79 @@ pub fn decrypt(value: &str, key_file: &str) -> Result<String, EnvError> {
         return Err(EnvError::DecryptionFailed("decryption failed".to_string()));
     }
 
-    let mut encrypted_bytes = Vec::from_hex(hex)
-        .map_err(|_| EnvError::DecryptionFailed("decryption failed".to_string()))?;
+    let mut encrypted_bytes = Zeroizing::new(
+        Vec::from_hex(hex)
+            .map_err(|_| EnvError::DecryptionFailed("decryption failed".to_string()))?,
+    );
 
     // Salt was consumed during PBKDF key derivation by Geneos Gateway;
     // only key and IV are needed for decryption.
     let (_, key_hex, iv_hex) = parse_key_file(key_file)?;
 
-    let key_bytes = Vec::from_hex(key_hex)
-        .map_err(|_| EnvError::DecryptionFailed("decryption failed".to_string()))?;
-    let iv_bytes = Vec::from_hex(iv_hex)
-        .map_err(|_| EnvError::DecryptionFailed("decryption failed".to_string()))?;
+    let key_bytes = Zeroizing::new(
+        Vec::from_hex(&*key_hex)
+            .map_err(|_| EnvError::DecryptionFailed("decryption failed".to_string()))?,
+    );
+    let iv_bytes = Zeroizing::new(
+        Vec::from_hex(&*iv_hex)
+            .map_err(|_| EnvError::DecryptionFailed("decryption failed".to_string()))?,
+    );
 
     type Aes256Cbc = Decryptor<aes::Aes256>;
 
-    let decrypted_bytes = Aes256Cbc::new_from_slices(&key_bytes, &iv_bytes)
-        .map_err(|_| EnvError::DecryptionFailed("decryption failed".to_string()))?
-        .decrypt_padded_mut::<Pkcs7>(&mut encrypted_bytes)
-        .map_err(|_| EnvError::DecryptionFailed("decryption failed".to_string()))?;
+    let len = {
+        let decrypted = Aes256Cbc::new_from_slices(&key_bytes, &iv_bytes)
+            .map_err(|_| EnvError::DecryptionFailed("decryption failed".to_string()))?
+            .decrypt_padded_mut::<Pkcs7>(&mut encrypted_bytes)
+            .map_err(|_| EnvError::DecryptionFailed("decryption failed".to_string()))?;
+        decrypted.len()
+    };
 
-    String::from_utf8(decrypted_bytes.into())
-        .map_err(|_| EnvError::DecryptionFailed("decryption failed".to_string()))
+    encrypted_bytes.truncate(len);
+    let raw = std::mem::take(&mut *encrypted_bytes);
+
+    match String::from_utf8(raw) {
+        Ok(s) => Ok(Zeroizing::new(s)),
+        Err(e) => {
+            drop(Zeroizing::new(e.into_bytes()));
+            Err(EnvError::DecryptionFailed("decryption failed".to_string()))
+        }
+    }
 }
 
 /// Retrieves an environment variable and decrypts it if it is encrypted.
-pub fn get_secure_var(name: &str, key_file: &str) -> Result<String, EnvError> {
+///
+/// Returns `Zeroizing<String>` — the value is zeroed on drop whether or
+/// not it was encrypted.
+pub fn get_secure_var(name: &str, key_file: &str) -> Result<Zeroizing<String>, EnvError> {
     let value = get_var(name)?;
     if is_encrypted(&value) {
         decrypt(&value, key_file)
     } else {
-        Ok(value)
+        Ok(Zeroizing::new(value))
     }
 }
 
 /// Retrieves a secure environment variable, returning a default if it is missing.
-pub fn get_secure_var_or(name: &str, key_file: &str, default: &str) -> Result<String, EnvError> {
+///
+/// Returns `Zeroizing<String>` — the value is zeroed on drop whether or
+/// not it was encrypted.
+pub fn get_secure_var_or(
+    name: &str,
+    key_file: &str,
+    default: &str,
+) -> Result<Zeroizing<String>, EnvError> {
     match get_var(name) {
         Ok(val) => {
             if is_encrypted(&val) {
                 decrypt(&val, key_file)
             } else {
-                Ok(val)
+                Ok(Zeroizing::new(val))
             }
         }
-        Err(EnvError::VarError(std::env::VarError::NotPresent)) => Ok(default.to_string()),
+        Err(EnvError::VarError(std::env::VarError::NotPresent)) => {
+            Ok(Zeroizing::new(default.to_string()))
+        }
         Err(e) => Err(e),
     }
 }
@@ -193,12 +228,12 @@ iv=472A3557ADDD2525AD4E555738636A67
         let result = parse_key_file(key_file_path.to_str().unwrap());
         assert!(result.is_ok());
         let (salt, key, iv) = result.unwrap();
-        assert_eq!(salt, "89A6A795C9CCECB5");
+        assert_eq!(&*salt, "89A6A795C9CCECB5");
         assert_eq!(
-            key,
+            &*key,
             "26D6EDD53A0AFA8FA1AA3FBCD2FFF2A0BF4809A4E04511F629FC732C2A42A8FC"
         );
-        assert_eq!(iv, "472A3557ADDD2525AD4E555738636A67");
+        assert_eq!(&*iv, "472A3557ADDD2525AD4E555738636A67");
 
         // invalid file
         let invalid_key_file_path = dir.path().join("invalid-key-file");
@@ -217,7 +252,7 @@ iv=472A3557ADDD2525AD4E555738636A67
         write_key_file(&key_file_path, VALID_KEY_FILE_CONTENTS);
         let result = decrypt("not-encrypted", key_file_path.to_str().unwrap());
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "not-encrypted");
+        assert_eq!(&*result.unwrap(), "not-encrypted");
     }
 
     #[test]
@@ -229,7 +264,7 @@ iv=472A3557ADDD2525AD4E555738636A67
         with_var("PLAIN_VAR", Some("plain_text"), || {
             let result = get_secure_var("PLAIN_VAR", key_file_path.to_str().unwrap());
             assert!(result.is_ok());
-            assert_eq!(result.unwrap(), "plain_text");
+            assert_eq!(&*result.unwrap(), "plain_text");
         });
 
         with_var::<_, &str, _, _>("MISSING_VAR", None, || {
@@ -243,13 +278,13 @@ iv=472A3557ADDD2525AD4E555738636A67
         with_var("ENCRYPTED_VAR", Some(ENCRYPTED_VAR_1), || {
             let result = get_secure_var("ENCRYPTED_VAR", key_file_path.to_str().unwrap());
             assert!(result.is_ok());
-            assert_eq!(result.unwrap(), DECRYPTED_VAR_1.to_string());
+            assert_eq!(&*result.unwrap(), DECRYPTED_VAR_1);
         });
 
         with_var("ENCRYPTED_VAR", Some(ENCRYPTED_VAR_2), || {
             let result = get_secure_var("ENCRYPTED_VAR", key_file_path.to_str().unwrap());
             assert!(result.is_ok());
-            assert_eq!(result.unwrap(), DECRYPTED_VAR_2.to_string());
+            assert_eq!(&*result.unwrap(), DECRYPTED_VAR_2);
         });
     }
 
@@ -266,7 +301,7 @@ iv=472A3557ADDD2525AD4E555738636A67
                 "fallback",
             );
             assert!(result.is_ok());
-            assert_eq!(result.unwrap(), "fallback");
+            assert_eq!(&*result.unwrap(), "fallback");
         });
 
         with_var("ENCRYPTED_VAR_OR", Some(ENCRYPTED_VAR_1), || {
@@ -276,7 +311,7 @@ iv=472A3557ADDD2525AD4E555738636A67
                 "fallback",
             );
             assert!(result.is_ok());
-            assert_eq!(result.unwrap(), DECRYPTED_VAR_1.to_string());
+            assert_eq!(&*result.unwrap(), DECRYPTED_VAR_1);
         });
     }
 
@@ -319,8 +354,8 @@ iv=472A3557ADDD2525AD4E555738636A67
         write_key_file(&key_file_path, VALID_KEY_FILE_CONTENTS);
         let kf = key_file_path.to_str().unwrap();
 
-        assert_eq!(decrypt(ENCRYPTED_VAR_1, kf).unwrap(), DECRYPTED_VAR_1);
-        assert_eq!(decrypt(ENCRYPTED_VAR_2, kf).unwrap(), DECRYPTED_VAR_2);
+        assert_eq!(&*decrypt(ENCRYPTED_VAR_1, kf).unwrap(), DECRYPTED_VAR_1);
+        assert_eq!(&*decrypt(ENCRYPTED_VAR_2, kf).unwrap(), DECRYPTED_VAR_2);
     }
 
     #[test]
@@ -331,9 +366,9 @@ iv=472A3557ADDD2525AD4E555738636A67
         write_key_file(&key_file_path, VALID_KEY_FILE_CONTENTS);
         let kf = key_file_path.to_str().unwrap();
 
-        assert_eq!(decrypt("", kf).unwrap(), "");
-        assert_eq!(decrypt("short", kf).unwrap(), "short");
-        assert_eq!(decrypt("12345", kf).unwrap(), "12345");
+        assert_eq!(&*decrypt("", kf).unwrap(), "");
+        assert_eq!(&*decrypt("short", kf).unwrap(), "short");
+        assert_eq!(&*decrypt("12345", kf).unwrap(), "12345");
     }
 
     #[test]
@@ -347,16 +382,16 @@ iv=472A3557ADDD2525AD4E555738636A67
         );
 
         let (salt, key, iv) = parse_key_file(key_file_path.to_str().unwrap()).unwrap();
-        assert_eq!(salt, "89A6A795C9CCECB5");
+        assert_eq!(&*salt, "89A6A795C9CCECB5");
         assert_eq!(
-            key,
+            &*key,
             "26D6EDD53A0AFA8FA1AA3FBCD2FFF2A0BF4809A4E04511F629FC732C2A42A8FC"
         );
-        assert_eq!(iv, "472A3557ADDD2525AD4E555738636A67");
+        assert_eq!(&*iv, "472A3557ADDD2525AD4E555738636A67");
 
         // Verify decryption still works with reordered key file
         assert_eq!(
-            decrypt(ENCRYPTED_VAR_1, key_file_path.to_str().unwrap()).unwrap(),
+            &*decrypt(ENCRYPTED_VAR_1, key_file_path.to_str().unwrap()).unwrap(),
             DECRYPTED_VAR_1
         );
     }
@@ -389,12 +424,12 @@ iv=472A3557ADDD2525AD4E555738636A67
         let result = parse_key_file(key_file_path.to_str().unwrap());
         assert!(result.is_ok());
         let (salt, key, iv) = result.unwrap();
-        assert_eq!(salt, "89A6A795C9CCECB5");
+        assert_eq!(&*salt, "89A6A795C9CCECB5");
         assert_eq!(
-            key,
+            &*key,
             "26D6EDD53A0AFA8FA1AA3FBCD2FFF2A0BF4809A4E04511F629FC732C2A42A8FC"
         );
-        assert_eq!(iv, "472A3557ADDD2525AD4E555738636A67");
+        assert_eq!(&*iv, "472A3557ADDD2525AD4E555738636A67");
     }
 
     #[test]
@@ -407,7 +442,7 @@ iv=472A3557ADDD2525AD4E555738636A67
         with_var("PLAIN_SECURE_OR", Some("plain_value"), || {
             let result = get_secure_var_or("PLAIN_SECURE_OR", kf, "fallback");
             assert!(result.is_ok());
-            assert_eq!(result.unwrap(), "plain_value");
+            assert_eq!(&*result.unwrap(), "plain_value");
         });
     }
 

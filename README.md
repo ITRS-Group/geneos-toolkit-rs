@@ -24,10 +24,10 @@ Add the following to your `Cargo.toml`:
 ```toml
 # Lean default (no secure env, zero third-party runtime dependencies)
 [dependencies]
-geneos-toolkit = "0.2"
+geneos-toolkit = "0.4"
 
 # Enable secure env helpers (adds crypto dependencies)
-# geneos-toolkit = { version = "0.2", features = ["secure-env"] }
+# geneos-toolkit = { version = "0.4", features = ["secure-env"] }
 ```
 
 ## Usage
@@ -154,22 +154,39 @@ Enable the `secure-env` feature to add the secure helpers:
 
 ```toml
 [dependencies]
-geneos-toolkit = { version = "0.2", features = ["secure-env"] }
+geneos-toolkit = { version = "0.4", features = ["secure-env"] }
 ```
 
 This feature gates `decrypt`, `get_secure_var`, and related helpers.
+All secure helpers return `Zeroizing<String>` (re-exported in the prelude),
+which automatically zeroes the secret in memory when the value is dropped.
+`Zeroizing<String>` implements `Deref<Target=String>`, so you can use it
+anywhere a `&str` is expected.
 
 ```rust,no_run
 use geneos_toolkit::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let secret = get_secure_var("MY_SECRET", "/path/to/keyfile")?;
-    println!("Secret: {}", secret);
+    let secret: Zeroizing<String> = get_secure_var("MY_SECRET", "/path/to/keyfile")?;
+    // Use as &str via auto-deref:
+    println!("Secret length: {}", secret.len());
+    // secret is zeroed in memory when it goes out of scope
     Ok(())
 }
 ```
 
 - Without `secure-env`, encrypted values (`+encs+`) make `get_var`/`get_var_or` return `MissingSecureEnvSupport`, and the secure helpers are not exposed.
+
+### Migrating from 0.3.x to 0.4.0
+
+`decrypt`, `get_secure_var`, and `get_secure_var_or` now return
+`Result<Zeroizing<String>, EnvError>` instead of `Result<String, EnvError>`.
+
+- **No change needed** if you pass the result to functions accepting `&str` —
+  auto-deref handles the conversion.
+- **Update needed** if you store the result in a `String` variable — change
+  the type annotation to `Zeroizing<String>`, or call `.to_string()` if you
+  explicitly need an unprotected `String` (not recommended for secrets).
 
 ## Contributing
 

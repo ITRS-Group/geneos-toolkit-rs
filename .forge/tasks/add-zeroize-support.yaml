@@ -1,6 +1,6 @@
 slug: add-zeroize-support
 id: 5
-status: intake
+status: done
 priority: high
 source: sub:security-hardening
 project: geneos-toolkit
@@ -9,8 +9,8 @@ updated: 2026-04-08
 blocked: false
 flow_state: active
 owner: null
-block_reason: "initiative ordering: harden-crypto-module must complete first"
-unblock_trigger: "harden-crypto-module reaches done"
+block_reason: null
+unblock_trigger: null
 park_reason: null
 revisit_trigger: null
 serialization_mode: parallel
@@ -20,7 +20,7 @@ attempts: 0
 auto_close_issue: true
 source_issue_number: null
 source_repo: ITRS-Group/geneos-toolkit-rs
-resolution: null
+resolution: completed
 parent: security-hardening
 children: []
 
@@ -29,11 +29,13 @@ branch: null
 
 artifacts:
   intake: intake/add-zeroize-support.md
-  research: null
-  spec: null
-  plan: null
+  research: research/add-zeroize-support.md
+  spec: specs/add-zeroize-support.md
+  plan: plans/add-zeroize-support.md
   tasks: null
   improve: null
 
 history:
   - "2026-04-08 12:57: mined from security audit — M1, M2, L4"
+  - "2026-04-08: research/spec/plan complete — ready for execution"
+  - "2026-04-08: done — zeroize wrapping complete, version bumped to 0.4.0, review fixes applied"

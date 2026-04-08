@@ -1,6 +1,6 @@
 [package]
 name = "geneos-toolkit"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2024"
 license = "Apache-2.0"
 authors = ["Johan Thorén <jthoren@itrsgroup.com>"]
@@ -16,13 +16,14 @@ path = "examples/basic_dataview.rs"
 
 [features]
 default = []
-secure-env = ["aes", "cbc", "cipher", "hex"]
+secure-env = ["aes", "cbc", "cipher", "hex", "zeroize"]
 
 [dependencies]
 aes = { version = "0.8.4", optional = true }
 cbc = { version = "0.1.2", features = ["alloc"], optional = true }
 cipher = { version = "0.4.4", optional = true }
 hex = { version = "0.4.3", optional = true }
+zeroize = { version = "1", optional = true }
 
 [dev-dependencies]
 pretty_assertions = "1.4.1"
