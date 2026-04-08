@@ -395,4 +395,183 @@ iv=472A3557ADDD2525AD4E555738636A67
         let result = decrypt("+encs+ZZ", key_file_path.to_str().unwrap());
         assert!(matches!(result, Err(EnvError::DecryptionFailed(_))));
     }
+
+    #[test]
+    fn test_decrypt_empty_ciphertext() {
+        let dir = tempdir().unwrap();
+        let key_file_path = dir.path().join("key-file");
+        {
+            let mut file = File::create(&key_file_path).unwrap();
+            writeln!(file, "{}", VALID_KEY_FILE_CONTENTS).unwrap();
+        }
+        let result = decrypt("+encs+", key_file_path.to_str().unwrap());
+        let err = result.expect_err("expected error for empty ciphertext");
+        let msg = format!("{}", err);
+        assert!(
+            msg.contains("empty ciphertext"),
+            "expected 'empty ciphertext' in error, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_decrypt_opaque_errors() {
+        let dir = tempdir().unwrap();
+        let key_file_path = dir.path().join("key-file");
+        {
+            let mut file = File::create(&key_file_path).unwrap();
+            writeln!(file, "{}", VALID_KEY_FILE_CONTENTS).unwrap();
+        }
+        // Invalid hex should produce an opaque error, not leak hex library details
+        let result = decrypt("+encs+ZZ", key_file_path.to_str().unwrap());
+        if let Err(EnvError::DecryptionFailed(inner)) = result {
+            assert_eq!(
+                inner, "decryption failed",
+                "inner message must be opaque, got: {inner}"
+            );
+        } else {
+            panic!("expected DecryptionFailed variant");
+        }
+    }
+
+    #[test]
+    fn test_parse_key_file_duplicate_key() {
+        let dir = tempdir().unwrap();
+        let key_file_path = dir.path().join("key-file");
+        {
+            let mut file = File::create(&key_file_path).unwrap();
+            writeln!(file, "salt=89A6A795C9CCECB5").unwrap();
+            writeln!(
+                file,
+                "key=26D6EDD53A0AFA8FA1AA3FBCD2FFF2A0BF4809A4E04511F629FC732C2A42A8FC"
+            )
+            .unwrap();
+            writeln!(
+                file,
+                "key=AABBCCDDEEFF00112233445566778899AABBCCDDEEFF00112233445566778899"
+            )
+            .unwrap();
+            writeln!(file, "iv=472A3557ADDD2525AD4E555738636A67").unwrap();
+        }
+        let result = parse_key_file(key_file_path.to_str().unwrap());
+        let err = result.expect_err("expected error for duplicate key");
+        let msg = format!("{}", err);
+        assert!(
+            msg.contains("duplicate"),
+            "expected 'duplicate' in error, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_parse_key_file_oversize() {
+        let dir = tempdir().unwrap();
+        let key_file_path = dir.path().join("key-file");
+        {
+            let mut file = File::create(&key_file_path).unwrap();
+            writeln!(file, "salt=89A6A795C9CCECB5").unwrap();
+            writeln!(
+                file,
+                "key=26D6EDD53A0AFA8FA1AA3FBCD2FFF2A0BF4809A4E04511F629FC732C2A42A8FC"
+            )
+            .unwrap();
+            writeln!(file, "iv=472A3557ADDD2525AD4E555738636A67").unwrap();
+            // Pad with blank lines to exceed 1024 bytes
+            for _ in 0..100 {
+                writeln!(file).unwrap();
+            }
+        }
+        let result = parse_key_file(key_file_path.to_str().unwrap());
+        let err = result.expect_err("expected error for oversize key file");
+        let msg = format!("{}", err);
+        assert!(
+            msg.contains("too large"),
+            "expected 'too large' in error, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_parse_key_file_no_equals_line() {
+        let dir = tempdir().unwrap();
+        let key_file_path = dir.path().join("key-file");
+        {
+            let mut file = File::create(&key_file_path).unwrap();
+            writeln!(file, "salt=89A6A795C9CCECB5").unwrap();
+            writeln!(
+                file,
+                "key=26D6EDD53A0AFA8FA1AA3FBCD2FFF2A0BF4809A4E04511F629FC732C2A42A8FC"
+            )
+            .unwrap();
+            writeln!(file, "iv=472A3557ADDD2525AD4E555738636A67").unwrap();
+            writeln!(file, "garbage").unwrap();
+        }
+        let result = parse_key_file(key_file_path.to_str().unwrap());
+        let err = result.expect_err("expected error for line without '='");
+        let msg = format!("{}", err);
+        assert!(
+            msg.contains("invalid line"),
+            "expected 'invalid line' in error, got: {msg}"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_parse_key_file_world_readable() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempdir().unwrap();
+        let key_file_path = dir.path().join("key-file");
+        {
+            let mut file = File::create(&key_file_path).unwrap();
+            writeln!(file, "{}", VALID_KEY_FILE_CONTENTS).unwrap();
+        }
+        std::fs::set_permissions(
+            &key_file_path,
+            std::fs::Permissions::from_mode(0o644),
+        )
+        .unwrap();
+
+        let result = parse_key_file(key_file_path.to_str().unwrap());
+        let err = result.expect_err("expected error for world-readable key file");
+        let msg = format!("{}", err);
+        assert!(
+            msg.contains("world-readable"),
+            "expected 'world-readable' in error, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_env_error_debug_redacts_crypto() {
+        let decryption_err = EnvError::DecryptionFailed("secret stuff".to_string());
+        let debug_str = format!("{:?}", decryption_err);
+        assert!(
+            debug_str.contains("[REDACTED]"),
+            "Debug must redact inner message, got: {debug_str}"
+        );
+        assert!(
+            !debug_str.contains("secret stuff"),
+            "Debug must not expose inner message, got: {debug_str}"
+        );
+
+        let key_err = EnvError::KeyFileFormatError("secret stuff".to_string());
+        let debug_str = format!("{:?}", key_err);
+        assert!(
+            debug_str.contains("[REDACTED]"),
+            "Debug must redact inner message, got: {debug_str}"
+        );
+        assert!(
+            !debug_str.contains("secret stuff"),
+            "Debug must not expose inner message, got: {debug_str}"
+        );
+    }
+
+    #[test]
+    fn test_parse_key_file_no_path_leak() {
+        let nonexistent = "/tmp/nonexistent-key-file-xyz-abc";
+        let result = parse_key_file(nonexistent);
+        let err = result.expect_err("expected IoError for nonexistent path");
+        let msg = format!("{}", err);
+        assert!(
+            !msg.contains(nonexistent),
+            "error must not leak file path, got: {msg}"
+        );
+    }
 }

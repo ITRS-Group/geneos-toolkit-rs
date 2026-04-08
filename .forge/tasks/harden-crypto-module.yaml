@@ -1,6 +1,6 @@
 slug: harden-crypto-module
 id: 4
-status: plan
+status: execute
 priority: normal
 source: sub:security-hardening
 project: geneos-toolkit
@@ -40,3 +40,4 @@ history:
   - "2026-04-08: research complete — 10 changes across secure_env.rs and env.rs, medium complexity"
   - "2026-04-08: cut — spec drafted at specs/harden-crypto-module.md"
   - "2026-04-08: forged — plan generated, branch set to spec/harden-crypto-module"
+  - "2026-04-08: executing — Phase 0 approved, execution started"
