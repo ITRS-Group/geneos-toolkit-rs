@@ -1,13 +1,13 @@
 slug: harden-crypto-module
 id: 4
-status: intake
+status: research
 priority: normal
 source: sub:security-hardening
 project: geneos-toolkit
 created: 2026-04-08
 updated: 2026-04-08
-blocked: "waiting for fix-ci-pipeline"
-flow_state: blocked
+blocked: false
+flow_state: active
 owner: null
 block_reason: "initiative ordering: fix-ci-pipeline must complete first"
 unblock_trigger: "fix-ci-pipeline reaches done"
@@ -29,7 +29,7 @@ branch: null
 
 artifacts:
   intake: intake/harden-crypto-module.md
-  research: null
+  research: research/harden-crypto-module.md
   spec: null
   plan: null
   tasks: null
@@ -37,3 +37,4 @@ artifacts:
 
 history:
   - "2026-04-08 12:57: mined from security audit — L1, L2, L3, I1, I2"
+  - "2026-04-08: research complete — 10 changes across secure_env.rs and env.rs, medium complexity"
