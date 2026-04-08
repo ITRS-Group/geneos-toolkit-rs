@@ -30,6 +30,14 @@ Add explanatory comment for future maintainers.
 `EnvError` derives `Debug`, exposing `DecryptionFailed(String)` contents in panic output.
 Consider manual `Debug` impl that redacts crypto-sensitive variants.
 
+### L9: Key File Path Traversal (LOW)
+`parse_key_file` passes the `path` argument directly to `File::open()` with no validation.
+If `key_file` originates from untrusted input, arbitrary files could be read. The error at
+line 32-33 echoes back unrecognized key names from the file, leaking left-hand side content
+of `=`-delimited lines from arbitrary files. Practical impact is limited (format validation
+rejects most files), but validate path against expected patterns or at minimum avoid echoing
+file content in error messages.
+
 ## Scope
 
 Changes to `src/secure_env.rs` and `src/env.rs`:
@@ -43,3 +51,4 @@ Changes to `src/secure_env.rs` and `src/env.rs`:
 7. Fix `value.len() < 6` to explicit empty-ciphertext error
 8. Add comment explaining salt is intentionally unused
 9. Manual `Debug` impl for `EnvError` that redacts crypto details
+10. Avoid echoing arbitrary file content in key file parse errors

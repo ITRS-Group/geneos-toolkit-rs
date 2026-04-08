@@ -23,6 +23,19 @@ to mutable tags. Add minimal permissions, pin actions to full commit SHAs.
 `cargo publish --token ${CRATES_IO_TOKEN}` exposes token in `/proc/<pid>/cmdline`.
 Use `CARGO_REGISTRY_TOKEN` env var instead.
 
+### L8: No Approval Gate for Publishing (LOW)
+No `environment:` with required reviewers on the publish job. A tag push from a
+compromised account auto-publishes to crates.io. Add environment protection rules
+or at minimum document the risk.
+
+### I4: No `cargo vet` (LOW/BEST PRACTICE)
+No first-party dependency review chain. `cargo vet` would provide an auditable trail
+of dependency reviews — relevant for regulated financial environments.
+
+### I5: No SBOM Generation (INFORMATIONAL)
+No Software Bill of Materials generated during CI/publish. Regulated financial
+environments often require SBOMs for deployed software.
+
 ## Scope
 
 Changes to `.github/workflows/deploy.yaml` and `deny.toml`:
@@ -34,3 +47,6 @@ Changes to `.github/workflows/deploy.yaml` and `deny.toml`:
 5. Add `permissions: contents: read` to workflow
 6. Pin all third-party actions to full commit SHAs
 7. Switch publish step to `CARGO_REGISTRY_TOKEN` env var
+8. Add `environment:` with protection rules on publish job (or document risk)
+9. Evaluate adding `cargo vet` to CI
+10. Evaluate SBOM generation (e.g., `cargo cyclonedx` or `cargo sbom`)
