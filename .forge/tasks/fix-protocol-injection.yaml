@@ -6,11 +6,11 @@ source: sub:security-hardening
 project: geneos-toolkit
 created: 2026-04-08
 updated: 2026-04-08
-blocked: false
-flow_state: active
+blocked: "waiting for baseline-test-coverage"
+flow_state: blocked
 owner: null
-block_reason: null
-unblock_trigger: null
+block_reason: "initiative ordering: baseline-test-coverage must complete first"
+unblock_trigger: "baseline-test-coverage reaches done"
 park_reason: null
 revisit_trigger: null
 serialization_mode: parallel

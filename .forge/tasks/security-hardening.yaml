@@ -23,6 +23,7 @@ source_repo: ITRS-Group/geneos-toolkit-rs
 resolution: null
 parent: null
 children:
+  - baseline-test-coverage
   - fix-protocol-injection
   - fix-ci-pipeline
   - harden-crypto-module
@@ -42,3 +43,4 @@ artifacts:
 
 history:
   - "2026-04-08 12:57: mined from full security audit — crypto, protocol injection, supply chain"
+  - "2026-04-08 13:10: added baseline-test-coverage as first child"

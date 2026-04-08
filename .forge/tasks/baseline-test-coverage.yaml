@@ -1,17 +1,16 @@
-slug: fix-ci-pipeline
-id: 3
+slug: baseline-test-coverage
+id: 7
 status: intake
-priority: high
+priority: critical
 source: sub:security-hardening
 project: geneos-toolkit
 created: 2026-04-08
 updated: 2026-04-08
-blocked: "waiting for fix-protocol-injection"
-flow_state: blocked
+blocked: false
+flow_state: active
 owner: null
-block_reason: "initiative ordering: fix-protocol-injection must complete first"
-unblock_trigger: "fix-protocol-injection reaches done"
-
+block_reason: null
+unblock_trigger: null
 park_reason: null
 revisit_trigger: null
 serialization_mode: parallel
@@ -29,7 +28,7 @@ worktree: null
 branch: null
 
 artifacts:
-  intake: intake/fix-ci-pipeline.md
+  intake: intake/baseline-test-coverage.md
   research: null
   spec: null
   plan: null
@@ -37,4 +36,4 @@ artifacts:
   improve: null
 
 history:
-  - "2026-04-08 12:57: mined from security audit — H2, H3, M5, M6, L6"
+  - "2026-04-08 13:10: added as prerequisite — establish green baseline before security changes"
