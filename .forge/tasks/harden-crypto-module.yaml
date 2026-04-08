@@ -1,0 +1,39 @@
+slug: harden-crypto-module
+id: 4
+status: intake
+priority: normal
+source: sub:security-hardening
+project: geneos-toolkit
+created: 2026-04-08
+updated: 2026-04-08
+blocked: "waiting for fix-ci-pipeline"
+flow_state: blocked
+owner: null
+block_reason: "initiative ordering: fix-ci-pipeline must complete first"
+unblock_trigger: "fix-ci-pipeline reaches done"
+park_reason: null
+revisit_trigger: null
+serialization_mode: parallel
+critical_transform_keys: []
+critical_transform_override: false
+attempts: 0
+auto_close_issue: true
+source_issue_number: null
+source_repo: ITRS-Group/geneos-toolkit-rs
+resolution: null
+parent: security-hardening
+children: []
+
+worktree: null
+branch: null
+
+artifacts:
+  intake: intake/harden-crypto-module.md
+  research: null
+  spec: null
+  plan: null
+  tasks: null
+  improve: null
+
+history:
+  - "2026-04-08 12:57: mined from security audit — L1, L2, L3, I1, I2"

@@ -1,0 +1,39 @@
+slug: fix-ci-pipeline
+id: 3
+status: intake
+priority: high
+source: sub:security-hardening
+project: geneos-toolkit
+created: 2026-04-08
+updated: 2026-04-08
+blocked: "waiting for fix-protocol-injection"
+flow_state: blocked
+owner: null
+block_reason: "initiative ordering: fix-protocol-injection must complete first"
+unblock_trigger: "fix-protocol-injection reaches done"
+park_reason: null
+revisit_trigger: null
+serialization_mode: parallel
+critical_transform_keys: []
+critical_transform_override: false
+attempts: 0
+auto_close_issue: true
+source_issue_number: null
+source_repo: ITRS-Group/geneos-toolkit-rs
+resolution: null
+parent: security-hardening
+children: []
+
+worktree: null
+branch: null
+
+artifacts:
+  intake: intake/fix-ci-pipeline.md
+  research: null
+  spec: null
+  plan: null
+  tasks: null
+  improve: null
+
+history:
+  - "2026-04-08 12:57: mined from security audit — H2, H3, M5, M6, L6"

@@ -1,0 +1,39 @@
+slug: fix-crate-metadata
+id: 6
+status: intake
+priority: low
+source: sub:security-hardening
+project: geneos-toolkit
+created: 2026-04-08
+updated: 2026-04-08
+blocked: "waiting for add-zeroize-support"
+flow_state: blocked
+owner: null
+block_reason: "initiative ordering: add-zeroize-support must complete first"
+unblock_trigger: "add-zeroize-support reaches done"
+park_reason: null
+revisit_trigger: null
+serialization_mode: parallel
+critical_transform_keys: []
+critical_transform_override: false
+attempts: 0
+auto_close_issue: true
+source_issue_number: null
+source_repo: ITRS-Group/geneos-toolkit-rs
+resolution: null
+parent: security-hardening
+children: []
+
+worktree: null
+branch: null
+
+artifacts:
+  intake: intake/fix-crate-metadata.md
+  research: null
+  spec: null
+  plan: null
+  tasks: null
+  improve: null
+
+history:
+  - "2026-04-08 12:57: mined from security audit — I3, L7"
