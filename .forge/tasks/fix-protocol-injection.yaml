@@ -1,6 +1,6 @@
 slug: fix-protocol-injection
 id: 2
-status: intake
+status: done
 priority: critical
 source: sub:security-hardening
 project: geneos-toolkit
@@ -20,7 +20,7 @@ attempts: 0
 auto_close_issue: true
 source_issue_number: null
 source_repo: ITRS-Group/geneos-toolkit-rs
-resolution: null
+resolution: completed
 parent: security-hardening
 children: []
 
@@ -37,3 +37,4 @@ artifacts:
 
 history:
   - "2026-04-08 12:57: mined from security audit — C1, H1, M3, L5"
+  - "2026-04-08 14:55: implemented — escape <!>/\\0, strip unicode Cc/Cf, EmptyName validation, 40 tests green"

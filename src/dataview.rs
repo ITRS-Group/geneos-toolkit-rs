@@ -6,6 +6,7 @@ use std::fmt;
 pub enum DataviewError {
     MissingRowHeader,
     MissingValue,
+    EmptyName(String),
 }
 
 impl fmt::Display for DataviewError {
@@ -13,6 +14,7 @@ impl fmt::Display for DataviewError {
         match self {
             DataviewError::MissingRowHeader => write!(f, "The Dataview must have a row header"),
             DataviewError::MissingValue => write!(f, "The Dataview must have at least one value"),
+            DataviewError::EmptyName(field) => write!(f, "Empty {field} name is not allowed"),
         }
     }
 }
@@ -99,6 +101,47 @@ impl Dataview {
     }
 }
 
+/// Strips Unicode control characters (categories Cc and Cf) except ASCII
+/// whitespace (tab, newline, carriage return, space). Newlines and carriage
+/// returns are subsequently escaped by `escape_nasty_chars`.
+fn strip_unicode_controls(s: &str) -> String {
+    s.chars()
+        .filter(|&c| {
+            if c == '\t' || c == '\n' || c == '\r' || c == ' ' {
+                return true;
+            }
+            !c.is_control() && !is_unicode_format_char(c)
+        })
+        .collect()
+}
+
+/// Returns `true` for Unicode Cf (format) characters — RTL override, zero-width
+/// space, BOM, etc. Rust's `char::is_control()` covers Cc; this covers Cf.
+fn is_unicode_format_char(c: char) -> bool {
+    matches!(c as u32,
+        0x00AD              // SOFT HYPHEN
+        | 0x0600..=0x0605   // Arabic format chars
+        | 0x061C            // ARABIC LETTER MARK
+        | 0x06DD            // ARABIC END OF AYAH
+        | 0x070F            // SYRIAC ABBREVIATION MARK
+        | 0x08E2            // ARABIC DISPUTED END OF AYAH
+        | 0x180E            // MONGOLIAN VOWEL SEPARATOR
+        | 0x200B..=0x200F   // Zero-width space, joiners, LTR/RTL marks
+        | 0x202A..=0x202E   // Directional formatting
+        | 0x2060..=0x2064   // Word joiner, invisible operators
+        | 0x2066..=0x206F   // Directional isolates, deprecated chars
+        | 0xFEFF            // BOM / ZWNBSP
+        | 0xFFF9..=0xFFFB   // Interlinear annotations
+        | 0x110BD           // KAITHI NUMBER SIGN
+        | 0x110CD           // KAITHI NUMBER SIGN ABOVE
+        | 0x13430..=0x13438 // Egyptian hieroglyph format
+        | 0x1BCA0..=0x1BCA3 // Shorthand format controls
+        | 0x1D173..=0x1D17A // Musical symbol format
+        | 0xE0001           // LANGUAGE TAG
+        | 0xE0020..=0xE007F // TAG characters
+    )
+}
+
 trait GeneosEscaping {
     fn escape_nasty_chars(&self) -> String;
 }
@@ -106,12 +149,22 @@ trait GeneosEscaping {
 impl GeneosEscaping for str {
     fn escape_nasty_chars(&self) -> String {
         let mut output = String::with_capacity(self.len());
-        for c in self.chars() {
+
+        // C1: Escape <!> at string start to prevent headline injection
+        let s = if self.starts_with("<!>") {
+            output.push_str("\\<!>");
+            &self[3..]
+        } else {
+            self
+        };
+
+        for c in s.chars() {
             match c {
                 '\\' => output.push_str("\\\\"),
                 ',' => output.push_str("\\,"),
                 '\n' => output.push_str("\\n"),
                 '\r' => output.push_str("\\r"),
+                '\0' => output.push_str("\\0"),
                 c => output.push(c),
             }
         }
@@ -228,7 +281,7 @@ impl Row {
 }
 
 /// A Builder for the `Dataview` struct.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct DataviewBuilder {
     row_header: Option<String>,
     headlines: Option<HashMap<String, String>>,
@@ -236,6 +289,21 @@ pub struct DataviewBuilder {
     headline_order: Vec<String>, // for the purpose of ordering the headlines
     column_order: Vec<String>,   // for the purpose of ordering the columns
     row_order: Vec<String>,      // for the purpose of ordering the rows
+    strip_unicode: bool,
+}
+
+impl Default for DataviewBuilder {
+    fn default() -> Self {
+        Self {
+            row_header: None,
+            headlines: None,
+            values: None,
+            headline_order: Vec::new(),
+            column_order: Vec::new(),
+            row_order: Vec::new(),
+            strip_unicode: true,
+        }
+    }
 }
 
 impl DataviewBuilder {
@@ -244,43 +312,64 @@ impl DataviewBuilder {
         Self::default()
     }
 
+    /// Controls whether Unicode control characters (categories Cc and Cf,
+    /// excluding ASCII whitespace) are stripped from all input strings.
+    /// Enabled by default. Set to `false` to preserve raw Unicode control characters.
+    pub fn strip_unicode_controls(mut self, strip: bool) -> Self {
+        self.strip_unicode = strip;
+        self
+    }
+
+    /// Sanitize a string according to builder settings.
+    fn sanitize(&self, s: &str) -> String {
+        if self.strip_unicode {
+            strip_unicode_controls(s)
+        } else {
+            s.to_string()
+        }
+    }
+
     /// Sets the mandatory row header label.
     pub fn set_row_header(mut self, row_header: &str) -> Self {
-        self.row_header = Some(row_header.to_string());
+        self.row_header = Some(self.sanitize(row_header));
         self
     }
 
     /// Adds or replaces a headline value. Order is preserved by first insert.
     pub fn add_headline<T: ToString>(mut self, key: &str, value: T) -> Self {
+        let key_string = self.sanitize(key);
+        let value_string = self.sanitize(&value.to_string());
+
         let mut headlines: HashMap<String, String> = self.headlines.unwrap_or_default();
 
-        let key_string = key.to_string();
         if !self.headline_order.contains(&key_string) {
             self.headline_order.push(key_string.clone());
         }
 
-        headlines.insert(key_string, value.to_string());
+        headlines.insert(key_string, value_string);
         self.headlines = Some(headlines);
         self
     }
 
     /// Adds a single cell value at `row`/`column`, recording insertion order.
     pub fn add_value<T: ToString>(mut self, row: &str, column: &str, value: T) -> Self {
+        let column_string = self.sanitize(column);
+        let row_string = self.sanitize(row);
+        let value_string = self.sanitize(&value.to_string());
+
         let mut values: HashMap<(String, String), String> = self.values.unwrap_or_default();
 
         // Track columns in order of insertion (if new)
-        let column_string = column.to_string();
         if !self.column_order.contains(&column_string) {
             self.column_order.push(column_string.clone());
         }
 
         // Track rows in order of insertion (if new)
-        let row_string = row.to_string();
         if !self.row_order.contains(&row_string) {
             self.row_order.push(row_string.clone());
         }
 
-        values.insert((row_string, column_string), value.to_string());
+        values.insert((row_string, column_string), value_string);
         self.values = Some(values);
         self
     }
@@ -364,7 +453,31 @@ impl DataviewBuilder {
     pub fn build(self) -> Result<Dataview, DataviewError> {
         let row_header = self.row_header.ok_or(DataviewError::MissingRowHeader)?;
 
+        if row_header.is_empty() {
+            return Err(DataviewError::EmptyName("row header".into()));
+        }
+
         let values = self.values.ok_or(DataviewError::MissingValue)?;
+
+        for row in &self.row_order {
+            if row.is_empty() {
+                return Err(DataviewError::EmptyName("row".into()));
+            }
+        }
+
+        for col in &self.column_order {
+            if col.is_empty() {
+                return Err(DataviewError::EmptyName("column".into()));
+            }
+        }
+
+        if let Some(ref headlines) = self.headlines {
+            for key in headlines.keys() {
+                if key.is_empty() {
+                    return Err(DataviewError::EmptyName("headline".into()));
+                }
+            }
+        }
 
         Ok(Dataview {
             row_header,
@@ -811,6 +924,288 @@ cache,degraded,45,7";
         Ok(())
     }
 
+    // === C1: <!> headline injection ===
+
+    #[test]
+    fn test_escape_headline_prefix_in_row_name() -> Result<(), DataviewError> {
+        // A row name starting with <!> must not render as a headline
+        let dataview = Dataview::builder()
+            .set_row_header("id")
+            .add_value("<!>AlertSeverity,OK", "status", "injected")
+            .build()?;
+
+        let output = dataview.to_string();
+        // The data row must NOT start with raw <!>
+        let data_lines: Vec<&str> = output.lines().filter(|l| !l.starts_with("<!>")).collect();
+        assert!(data_lines.len() >= 2, "Should have header + data row");
+        let data_row = data_lines[1];
+        assert!(
+            !data_row.starts_with("<!>"),
+            "Row name must not produce a fake headline: {data_row}"
+        );
+        // The escaped form should appear
+        assert!(data_row.contains("\\<!>"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_escape_headline_prefix_in_value() -> Result<(), DataviewError> {
+        // A value starting with <!> should be escaped
+        let dataview = Dataview::builder()
+            .set_row_header("id")
+            .add_value("row1", "col", "<!>Fake,headline")
+            .build()?;
+
+        let output = dataview.to_string();
+        // Value should contain escaped form
+        assert!(output.contains("\\<!>Fake"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_escape_headline_prefix_in_row_header() -> Result<(), DataviewError> {
+        // Row header starting with <!> must be escaped
+        let dataview = Dataview::builder()
+            .set_row_header("<!>header")
+            .add_value("row1", "col", "val")
+            .build()?;
+
+        let output = dataview.to_string();
+        let first_line = output.lines().next().unwrap();
+        assert!(
+            first_line.starts_with("\\<!>header"),
+            "Row header must escape <!>: {first_line}"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_headline_prefix_mid_string_not_escaped() {
+        // <!> only matters at string start — mid-string is harmless
+        let escaped = "some<!>text".escape_nasty_chars();
+        assert_eq!(escaped, "some<!>text");
+    }
+
+    #[test]
+    fn test_real_headlines_unaffected() -> Result<(), DataviewError> {
+        // Legitimate headlines must still render with <!> prefix
+        let dataview = Dataview::builder()
+            .set_row_header("id")
+            .add_headline("Status", "OK")
+            .add_value("r1", "c1", "v1")
+            .build()?;
+
+        let output = dataview.to_string();
+        assert!(output.contains("<!>Status,OK"));
+
+        Ok(())
+    }
+
+    // === H1: null byte passthrough ===
+
+    #[test]
+    fn test_escape_null_byte() {
+        let escaped = "before\0after".escape_nasty_chars();
+        assert_eq!(escaped, "before\\0after");
+        assert!(!escaped.contains('\0'));
+    }
+
+    #[test]
+    fn test_null_byte_in_value() -> Result<(), DataviewError> {
+        // Null bytes are stripped by unicode sanitizer (defense in depth:
+        // escape_nasty_chars would also escape them if they got through)
+        let dataview = Dataview::builder()
+            .set_row_header("id")
+            .add_value("row1", "col", "legitimate\0<!>INJECTED")
+            .build()?;
+
+        let output = dataview.to_string();
+        assert!(!output.contains('\0'), "Null bytes must not appear in output");
+        // \0 is stripped, so "legitimate" and "<!>INJECTED" are concatenated
+        assert!(output.contains("legitimate<!>INJECTED"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_null_byte_in_row_name() -> Result<(), DataviewError> {
+        let dataview = Dataview::builder()
+            .set_row_header("id")
+            .add_value("row\01", "col", "val")
+            .build()?;
+
+        let output = dataview.to_string();
+        assert!(!output.contains('\0'));
+
+        Ok(())
+    }
+
+    // === M3: unicode control character stripping ===
+
+    #[test]
+    fn test_strip_rtl_override() -> Result<(), DataviewError> {
+        // U+202E (RTL override) can make "KO" display as "OK" — must be stripped
+        let dataview = Dataview::builder()
+            .set_row_header("id")
+            .add_value("row1", "status", "\u{202E}KO")
+            .build()?;
+
+        let output = dataview.to_string();
+        assert!(
+            !output.contains('\u{202E}'),
+            "RTL override must be stripped"
+        );
+        assert!(output.contains("KO"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_strip_zero_width_space() -> Result<(), DataviewError> {
+        // U+200B (zero-width space) breaks rule matching
+        let dataview = Dataview::builder()
+            .set_row_header("id")
+            .add_value("row1", "col", "OK\u{200B}status")
+            .build()?;
+
+        let output = dataview.to_string();
+        assert!(!output.contains('\u{200B}'));
+        assert!(output.contains("OKstatus"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_strip_bom() -> Result<(), DataviewError> {
+        // U+FEFF (BOM) at start can confuse encoding detection
+        let dataview = Dataview::builder()
+            .set_row_header("id")
+            .add_value("row1", "col", "\u{FEFF}value")
+            .build()?;
+
+        let output = dataview.to_string();
+        assert!(!output.contains('\u{FEFF}'));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_preserve_ascii_whitespace() -> Result<(), DataviewError> {
+        // Tab and space must survive stripping (they are useful ASCII control/whitespace)
+        let dataview = Dataview::builder()
+            .set_row_header("id")
+            .add_value("row1", "col", "hello\tworld here")
+            .build()?;
+
+        let output = dataview.to_string();
+        assert!(output.contains("hello\tworld here"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_strip_unicode_controls_opt_out() -> Result<(), DataviewError> {
+        // When strip_unicode_controls(false), control chars pass through
+        let dataview = Dataview::builder()
+            .set_row_header("id")
+            .strip_unicode_controls(false)
+            .add_value("row1", "col", "\u{202E}KO")
+            .build()?;
+
+        let output = dataview.to_string();
+        assert!(
+            output.contains('\u{202E}'),
+            "RTL override should be preserved when stripping is disabled"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_strip_unicode_in_headline_key_and_value() -> Result<(), DataviewError> {
+        let dataview = Dataview::builder()
+            .set_row_header("id")
+            .add_headline("stat\u{200B}us", "O\u{202E}K")
+            .add_value("r1", "c1", "v1")
+            .build()?;
+
+        let output = dataview.to_string();
+        assert!(output.contains("<!>status,OK"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_strip_unicode_in_row_and_column_names() -> Result<(), DataviewError> {
+        let dataview = Dataview::builder()
+            .set_row_header("i\u{FEFF}d")
+            .add_value("ro\u{200B}w1", "co\u{202E}l", "val")
+            .build()?;
+
+        let output = dataview.to_string();
+        let first_line = output.lines().next().unwrap();
+        assert_eq!(first_line, "id,col");
+
+        Ok(())
+    }
+
+    // === L5: empty row/column name rejection ===
+
+    #[test]
+    fn test_reject_empty_row_header() {
+        let result = Dataview::builder()
+            .set_row_header("")
+            .add_value("row1", "col", "val")
+            .build();
+
+        assert!(matches!(result, Err(DataviewError::EmptyName(_))));
+    }
+
+    #[test]
+    fn test_reject_empty_row_name() {
+        let result = Dataview::builder()
+            .set_row_header("id")
+            .add_value("", "col", "val")
+            .build();
+
+        assert!(matches!(result, Err(DataviewError::EmptyName(_))));
+    }
+
+    #[test]
+    fn test_reject_empty_column_name() {
+        let result = Dataview::builder()
+            .set_row_header("id")
+            .add_value("row1", "", "val")
+            .build();
+
+        assert!(matches!(result, Err(DataviewError::EmptyName(_))));
+    }
+
+    #[test]
+    fn test_reject_empty_headline_key() {
+        let result = Dataview::builder()
+            .set_row_header("id")
+            .add_headline("", "val")
+            .add_value("row1", "col", "val")
+            .build();
+
+        assert!(matches!(result, Err(DataviewError::EmptyName(_))));
+    }
+
+    #[test]
+    fn test_whitespace_only_name_after_stripping() {
+        // A name that is only unicode control chars becomes empty after stripping
+        let result = Dataview::builder()
+            .set_row_header("id")
+            .add_value("\u{200B}\u{FEFF}", "col", "val")
+            .build();
+
+        assert!(matches!(result, Err(DataviewError::EmptyName(_))));
+    }
+
     #[test]
     fn test_row_sorting_methods() -> Result<(), DataviewError> {
         // Default: insertion order preserved
@@ -868,6 +1263,24 @@ mod property_tests {
             // The escaped string should not contain raw newlines as they break the protocol
             prop_assert!(!escaped.contains('\n'));
             prop_assert!(!escaped.contains('\r'));
+        }
+
+        #[test]
+        fn test_escape_nasty_chars_no_null_bytes(s in "\\PC*") {
+            let escaped = s.escape_nasty_chars();
+            prop_assert!(!escaped.contains('\0'), "Null bytes must be escaped");
+        }
+
+        #[test]
+        fn test_escape_nasty_chars_no_headline_injection(s in "\\PC*") {
+            let escaped = s.escape_nasty_chars();
+            // If the original started with <!>, the escaped form must not
+            if s.starts_with("<!>") {
+                prop_assert!(
+                    !escaped.starts_with("<!>"),
+                    "Escaped string must not start with raw <!>"
+                );
+            }
         }
 
         #[test]

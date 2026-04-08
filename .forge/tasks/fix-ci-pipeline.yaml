@@ -6,11 +6,11 @@ source: sub:security-hardening
 project: geneos-toolkit
 created: 2026-04-08
 updated: 2026-04-08
-blocked: "waiting for fix-protocol-injection"
-flow_state: blocked
+blocked: false
+flow_state: active
 owner: null
-block_reason: "initiative ordering: fix-protocol-injection must complete first"
-unblock_trigger: "fix-protocol-injection reaches done"
+block_reason: null
+unblock_trigger: null
 
 park_reason: null
 revisit_trigger: null
