@@ -1,6 +1,6 @@
 slug: baseline-test-coverage
 id: 7
-status: intake
+status: done
 priority: critical
 source: sub:security-hardening
 project: geneos-toolkit
@@ -20,7 +20,7 @@ attempts: 0
 auto_close_issue: true
 source_issue_number: null
 source_repo: ITRS-Group/geneos-toolkit-rs
-resolution: null
+resolution: completed
 parent: security-hardening
 children: []
 
@@ -37,3 +37,4 @@ artifacts:
 
 history:
   - "2026-04-08 13:10: added as prerequisite — establish green baseline before security changes"
+  - "2026-04-08 14:25: added 12 green baseline tests covering valid untested behavior across dataview, env, and secure_env"

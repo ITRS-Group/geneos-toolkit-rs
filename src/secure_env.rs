@@ -266,6 +266,114 @@ iv=472A3557ADDD2525AD4E555738636A67
     }
 
     #[test]
+    fn test_decrypt_known_ciphertexts() {
+        let dir = tempdir().unwrap();
+        let key_file_path = dir.path().join("key-file");
+        {
+            let mut file = File::create(&key_file_path).unwrap();
+            writeln!(file, "{}", VALID_KEY_FILE_CONTENTS).unwrap();
+        }
+        let kf = key_file_path.to_str().unwrap();
+
+        assert_eq!(decrypt(ENCRYPTED_VAR_1, kf).unwrap(), DECRYPTED_VAR_1);
+        assert_eq!(decrypt(ENCRYPTED_VAR_2, kf).unwrap(), DECRYPTED_VAR_2);
+    }
+
+    #[test]
+    fn test_decrypt_passthrough_short_values() {
+        // Values shorter than 6 chars skip decryption regardless of content
+        let dir = tempdir().unwrap();
+        let key_file_path = dir.path().join("key-file");
+        {
+            let mut file = File::create(&key_file_path).unwrap();
+            writeln!(file, "{}", VALID_KEY_FILE_CONTENTS).unwrap();
+        }
+        let kf = key_file_path.to_str().unwrap();
+
+        assert_eq!(decrypt("", kf).unwrap(), "");
+        assert_eq!(decrypt("short", kf).unwrap(), "short");
+        assert_eq!(decrypt("12345", kf).unwrap(), "12345");
+    }
+
+    #[test]
+    fn test_parse_key_file_reordered_fields() {
+        let dir = tempdir().unwrap();
+        let key_file_path = dir.path().join("key-file");
+        {
+            let mut file = File::create(&key_file_path).unwrap();
+            // Write fields in iv, key, salt order (instead of salt, key, iv)
+            writeln!(file, "iv=472A3557ADDD2525AD4E555738636A67").unwrap();
+            writeln!(
+                file,
+                "key=26D6EDD53A0AFA8FA1AA3FBCD2FFF2A0BF4809A4E04511F629FC732C2A42A8FC"
+            )
+            .unwrap();
+            writeln!(file, "salt=89A6A795C9CCECB5").unwrap();
+        }
+
+        let (salt, key, iv) = parse_key_file(key_file_path.to_str().unwrap()).unwrap();
+        assert_eq!(salt, "89A6A795C9CCECB5");
+        assert_eq!(
+            key,
+            "26D6EDD53A0AFA8FA1AA3FBCD2FFF2A0BF4809A4E04511F629FC732C2A42A8FC"
+        );
+        assert_eq!(iv, "472A3557ADDD2525AD4E555738636A67");
+
+        // Verify decryption still works with reordered key file
+        assert_eq!(
+            decrypt(ENCRYPTED_VAR_1, key_file_path.to_str().unwrap()).unwrap(),
+            DECRYPTED_VAR_1
+        );
+    }
+
+    #[test]
+    fn test_parse_key_file_blank_lines_skipped() {
+        let dir = tempdir().unwrap();
+        let key_file_path = dir.path().join("key-file");
+        {
+            let mut file = File::create(&key_file_path).unwrap();
+            writeln!(file).unwrap();
+            writeln!(file, "salt=89A6A795C9CCECB5").unwrap();
+            writeln!(file).unwrap();
+            writeln!(
+                file,
+                "key=26D6EDD53A0AFA8FA1AA3FBCD2FFF2A0BF4809A4E04511F629FC732C2A42A8FC"
+            )
+            .unwrap();
+            writeln!(file).unwrap();
+            writeln!(file, "iv=472A3557ADDD2525AD4E555738636A67").unwrap();
+            writeln!(file).unwrap();
+        }
+
+        let result = parse_key_file(key_file_path.to_str().unwrap());
+        assert!(result.is_ok());
+        let (salt, key, iv) = result.unwrap();
+        assert_eq!(salt, "89A6A795C9CCECB5");
+        assert_eq!(
+            key,
+            "26D6EDD53A0AFA8FA1AA3FBCD2FFF2A0BF4809A4E04511F629FC732C2A42A8FC"
+        );
+        assert_eq!(iv, "472A3557ADDD2525AD4E555738636A67");
+    }
+
+    #[test]
+    fn test_get_secure_var_or_plain_text() {
+        let dir = tempdir().unwrap();
+        let key_file_path = dir.path().join("key-file");
+        {
+            let mut file = File::create(&key_file_path).unwrap();
+            writeln!(file, "{}", VALID_KEY_FILE_CONTENTS).unwrap();
+        }
+        let kf = key_file_path.to_str().unwrap();
+
+        with_var("PLAIN_SECURE_OR", Some("plain_value"), || {
+            let result = get_secure_var_or("PLAIN_SECURE_OR", kf, "fallback");
+            assert!(result.is_ok());
+            assert_eq!(result.unwrap(), "plain_value");
+        });
+    }
+
+    #[test]
     fn test_decrypt_missing_keyfile() {
         let missing_path = "/non/existent/keyfile";
         let result = decrypt(ENCRYPTED_VAR_1, missing_path);

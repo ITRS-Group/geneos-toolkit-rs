@@ -683,6 +683,135 @@ queue3,7\\,331,45\\,000,0.16,online";
     }
 
     #[test]
+    fn test_duplicate_headline_overwrites_value_preserves_order() -> Result<(), DataviewError> {
+        let dataview = DataviewBuilder::new()
+            .set_row_header("id")
+            .add_headline("Status", "initial")
+            .add_headline("Count", "10")
+            .add_headline("Status", "updated")
+            .add_value("r1", "col", "val")
+            .build()?;
+
+        // Value should be overwritten
+        assert_eq!(dataview.headline("Status"), Some(&"updated".to_string()));
+        assert_eq!(dataview.headline("Count"), Some(&"10".to_string()));
+
+        // Order should reflect first insertion: Status before Count
+        assert_eq!(dataview.headline_order(), &["Status", "Count"]);
+
+        // Display should use updated value in original position
+        let output = dataview.to_string();
+        let lines: Vec<&str> = output.lines().collect();
+        assert_eq!(lines[1], "<!>Status,updated");
+        assert_eq!(lines[2], "<!>Count,10");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_duplicate_cell_overwrites_value_preserves_order() -> Result<(), DataviewError> {
+        let dataview = DataviewBuilder::new()
+            .set_row_header("id")
+            .add_value("row1", "colA", "first")
+            .add_value("row1", "colB", "other")
+            .add_value("row2", "colA", "x")
+            .add_value("row1", "colA", "second")
+            .build()?;
+
+        // Value should be overwritten
+        assert_eq!(dataview.value("row1", "colA"), Some(&"second".to_string()));
+
+        // Row and column order should reflect first insertion only (no duplicates)
+        assert_eq!(dataview.row_order(), &["row1", "row2"]);
+        assert_eq!(dataview.column_order(), &["colA", "colB"]);
+
+        // Display should use the overwritten value
+        let output = dataview.to_string();
+        assert!(output.contains("row1,second,other"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_backslash_escaping() -> Result<(), DataviewError> {
+        let dataview = DataviewBuilder::new()
+            .set_row_header("path\\id")
+            .add_headline("dir", "C:\\Users\\test")
+            .add_value("row\\1", "col\\a", "val\\ue")
+            .build()?;
+
+        let output = dataview.to_string();
+        let lines: Vec<&str> = output.lines().collect();
+
+        assert_eq!(lines[0], "path\\\\id,col\\\\a");
+        assert_eq!(lines[1], "<!>dir,C:\\\\Users\\\\test");
+        assert_eq!(lines[2], "row\\\\1,val\\\\ue");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_accessor_methods_nonexistent_keys() -> Result<(), DataviewError> {
+        let dataview = DataviewBuilder::new()
+            .set_row_header("id")
+            .add_headline("exists", "yes")
+            .add_value("row1", "col1", "val1")
+            .build()?;
+
+        assert_eq!(dataview.headline("nonexistent"), None);
+        assert_eq!(dataview.value("row1", "nonexistent"), None);
+        assert_eq!(dataview.value("nonexistent", "col1"), None);
+        assert_eq!(dataview.value("nonexistent", "nonexistent"), None);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_dataview_no_headlines() -> Result<(), DataviewError> {
+        let dataview = DataviewBuilder::new()
+            .set_row_header("item")
+            .add_value("a", "x", "1")
+            .add_value("b", "x", "2")
+            .build()?;
+
+        let output = dataview.to_string();
+        assert!(!output.contains("<!>"));
+        assert_eq!(output, "item,x\na,1\nb,2");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_golden_snapshot_representative_dataview() -> Result<(), DataviewError> {
+        let dataview = DataviewBuilder::new()
+            .set_row_header("service")
+            .add_headline("environment", "production")
+            .add_headline("region", "eu-west-1")
+            .add_value("api-gateway", "status", "running")
+            .add_value("api-gateway", "latency_ms", "12")
+            .add_value("api-gateway", "errors", "0")
+            .add_value("db-primary", "status", "running")
+            .add_value("db-primary", "latency_ms", "3")
+            .add_value("db-primary", "errors", "0")
+            .add_value("cache", "status", "degraded")
+            .add_value("cache", "latency_ms", "45")
+            .add_value("cache", "errors", "7")
+            .build()?;
+
+        let expected = "\
+service,status,latency_ms,errors
+<!>environment,production
+<!>region,eu-west-1
+api-gateway,running,12,0
+db-primary,running,3,0
+cache,degraded,45,7";
+
+        assert_eq!(dataview.to_string(), expected);
+
+        Ok(())
+    }
+
+    #[test]
     fn test_row_sorting_methods() -> Result<(), DataviewError> {
         // Default: insertion order preserved
         let default = Dataview::builder()

@@ -130,4 +130,17 @@ mod tests {
         assert!(!is_encrypted("plain_text"));
         assert!(!is_encrypted(""));
     }
+
+    #[test]
+    fn test_is_encrypted_edge_cases() {
+        // Bare prefix with no payload is still "encrypted"
+        assert!(is_encrypted("+encs+"));
+
+        // Incomplete prefix variants are not encrypted
+        assert!(!is_encrypted("+encs"));
+        assert!(!is_encrypted("+enc+"));
+        assert!(!is_encrypted("+ENCS+1234"));
+        assert!(!is_encrypted("encs+1234"));
+        assert!(!is_encrypted(" +encs+1234"));
+    }
 }
