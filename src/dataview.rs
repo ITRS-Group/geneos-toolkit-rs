@@ -151,9 +151,9 @@ impl GeneosEscaping for str {
         let mut output = String::with_capacity(self.len());
 
         // C1: Escape <!> at string start to prevent headline injection
-        let s = if self.starts_with("<!>") {
+        let s = if let Some(rest) = self.strip_prefix("<!>") {
             output.push_str("\\<!>");
-            &self[3..]
+            rest
         } else {
             self
         };
