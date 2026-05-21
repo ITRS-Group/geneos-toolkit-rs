@@ -1,6 +1,6 @@
 [package]
 name = "geneos-toolkit"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2024"
 rust-version = "1.85"
 license = "Apache-2.0"
@@ -10,10 +10,15 @@ repository = "https://github.com/ITRS-Group/geneos-toolkit-rs"
 keywords = ["geneos", "monitoring"]
 categories = ["api-bindings"]
 description = "Rust library for building Geneos Toolkit compatible applications"
+exclude = [".forge"]
 
 [[example]]
 name = "basic_dataview"
 path = "examples/basic_dataview.rs"
+
+[[example]]
+name = "redis_info_monitor"
+path = "examples/redis_info_monitor.rs"
 
 [features]
 default = []

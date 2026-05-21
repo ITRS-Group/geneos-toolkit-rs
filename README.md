@@ -148,6 +148,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+### Runnable examples
+
+The `examples/` directory contains scripts you can run with `cargo run --example <name>`:
+
+- **`basic_dataview`** — minimal dataview with one headline and two rows.
+- **`dataview_with_commas_in_cells`** — shows automatic escaping of commas in values.
+- **`dataview_with_multiple_headlines`** — multiple headlines preserving insertion order.
+- **`row_builder`** — using the `Row` builder to construct rows fluently.
+- **`iterative_rows`** — building rows from a collection in a loop.
+- **`files_iter`** — iterating a directory and emitting one row per file.
+- **`redis_info_monitor`** — full application monitor: shells out to `redis-cli INFO`,
+  parses the response, and emits a dataview with headlines (clients, memory, hit
+  ratio, role, replication link) plus one row per Redis logical database. Reads
+  `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_CLI_BIN` from the environment
+  — the standard Toolkit configuration pattern. Also demonstrates the `secure-env`
+  feature: built with `--features secure-env`, it decrypts a Geneos `+encs+...`
+  `REDIS_PASSWORD` using the AES key file at `REDIS_KEY_FILE` and keeps the
+  plaintext in a `Zeroizing<String>` that wipes on drop.
+
 ### Secure Environment Variables (feature-gated)
 
 Enable the `secure-env` feature to add the secure helpers:
@@ -198,7 +217,7 @@ please open an issue or submit a pull request.
 This project is licensed under the Apache License, Version 2.0.
 
 ```text
-   Copyright 2025 ITRS Group
+   Copyright 2025-2026 ITRS Group
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.

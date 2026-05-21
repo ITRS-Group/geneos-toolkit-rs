@@ -83,26 +83,40 @@ alpha,up,n/a
     }
 }
 
-/// Auto-discovers all examples and ensures they at least compile and run
+/// Auto-discovers all examples and ensures they at least compile and run.
+///
+/// Examples listed in `SKIP_RUN` are still compiled (via `cargo build --example`)
+/// but not executed — they depend on external programs or services that are
+/// not guaranteed to be present in CI.
 #[test]
 fn test_all_examples_compile() {
-    // Get all .rs files in the examples directory
+    const SKIP_RUN: &[&str] = &[
+        // Requires the `redis-cli` binary on PATH and a reachable Redis server.
+        "redis_info_monitor",
+    ];
+
     if let Ok(entries) = fs::read_dir("examples") {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.extension().is_some_and(|ext| ext == "rs") {
                 if let Some(file_stem) = path.file_stem() {
                     if let Some(name) = file_stem.to_str() {
-                        // Just check that the example compiles and runs without errors
+                        let subcommand = if SKIP_RUN.contains(&name) {
+                            "build"
+                        } else {
+                            "run"
+                        };
+
                         let output = Command::new("cargo")
-                            .args(["run", "--example", name])
+                            .args([subcommand, "--example", name])
                             .output()
                             .unwrap_or_else(|_| panic!("Failed to execute example {}", name));
 
                         assert!(
                             output.status.success(),
-                            "Example {} failed to run. Error: {}",
+                            "Example {} failed to {}. Error: {}",
                             name,
+                            subcommand,
                             String::from_utf8_lossy(&output.stderr)
                         );
                     }
