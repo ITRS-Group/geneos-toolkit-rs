@@ -7,7 +7,7 @@
 ///
 /// # Example
 ///
-/// ```no_run,rust
+/// ```rust,no_run
 /// use geneos_toolkit::prelude::*;
 ///
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {

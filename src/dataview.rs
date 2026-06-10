@@ -3,6 +3,7 @@ use std::error::Error;
 use std::fmt;
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum DataviewError {
     MissingRowHeader,
     MissingValue,
@@ -53,7 +54,7 @@ pub struct Dataview {
     row_header: String,
     headlines: HashMap<String, String>,
     headline_order: Vec<String>,
-    values: HashMap<(String, String), String>,
+    values: HashMap<String, HashMap<String, String>>,
     column_order: Vec<String>,
     row_order: Vec<String>,
 }
@@ -76,8 +77,8 @@ impl Dataview {
     }
 
     /// Returns a headline value by key, if present.
-    pub fn headline(&self, key: &str) -> Option<&String> {
-        self.headlines.get(key)
+    pub fn headline(&self, key: &str) -> Option<&str> {
+        self.headlines.get(key).map(String::as_str)
     }
 
     /// Returns the headline keys in display order.
@@ -86,8 +87,11 @@ impl Dataview {
     }
 
     /// Returns a cell value for the given row/column, if present.
-    pub fn value(&self, row: &str, column: &str) -> Option<&String> {
-        self.values.get(&(row.to_string(), column.to_string()))
+    pub fn value(&self, row: &str, column: &str) -> Option<&str> {
+        self.values
+            .get(row)
+            .and_then(|row_values| row_values.get(column))
+            .map(String::as_str)
     }
 
     /// Returns the column names in display order.
@@ -206,14 +210,14 @@ fn write_data_rows(
     f: &mut fmt::Formatter<'_>,
     rows: &[String],
     columns: &[String],
-    values: &HashMap<(String, String), String>,
+    values: &HashMap<String, HashMap<String, String>>,
 ) -> fmt::Result {
     let number_of_rows = rows.len();
     for (i, row) in rows.iter().enumerate() {
         write!(f, "{}", row.escape_nasty_chars())?;
         for col in columns {
             write!(f, ",")?;
-            if let Some(value) = values.get(&(row.to_string(), col.to_string())) {
+            if let Some(value) = values.get(row).and_then(|row_values| row_values.get(col)) {
                 write!(f, "{}", value.escape_nasty_chars())?;
             }
         }
@@ -257,8 +261,9 @@ impl Dataview {
 
 /// A helper struct to build a row of data.
 ///
+/// Rows must be created with [`Row::new`] so every row has an explicit name.
 /// This allows constructing a row with multiple columns before adding it to the Dataview.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Row {
     name: String,
     cells: Vec<(String, String)>,
@@ -266,16 +271,17 @@ pub struct Row {
 
 impl Row {
     /// Creates a new Row with the given name (row identifier).
-    pub fn new(name: impl ToString) -> Self {
+    pub fn new(name: impl AsRef<str>) -> Self {
         Self {
-            name: name.to_string(),
+            name: name.as_ref().to_string(),
             cells: Vec::new(),
         }
     }
 
     /// Adds a cell (column and value) to the row, preserving insertion order.
-    pub fn add_cell(mut self, column: impl ToString, value: impl ToString) -> Self {
-        self.cells.push((column.to_string(), value.to_string()));
+    pub fn add_cell(mut self, column: impl AsRef<str>, value: impl AsRef<str>) -> Self {
+        self.cells
+            .push((column.as_ref().to_string(), value.as_ref().to_string()));
         self
     }
 }
@@ -285,7 +291,7 @@ impl Row {
 pub struct DataviewBuilder {
     row_header: Option<String>,
     headlines: Option<HashMap<String, String>>,
-    values: Option<HashMap<(String, String), String>>,
+    values: Option<HashMap<String, HashMap<String, String>>>,
     headline_order: Vec<String>, // for the purpose of ordering the headlines
     column_order: Vec<String>,   // for the purpose of ordering the columns
     row_order: Vec<String>,      // for the purpose of ordering the rows
@@ -330,15 +336,15 @@ impl DataviewBuilder {
     }
 
     /// Sets the mandatory row header label.
-    pub fn set_row_header(mut self, row_header: &str) -> Self {
-        self.row_header = Some(self.sanitize(row_header));
+    pub fn set_row_header(mut self, row_header: impl AsRef<str>) -> Self {
+        self.row_header = Some(self.sanitize(row_header.as_ref()));
         self
     }
 
     /// Adds or replaces a headline value. Order is preserved by first insert.
-    pub fn add_headline<T: ToString>(mut self, key: &str, value: T) -> Self {
-        let key_string = self.sanitize(key);
-        let value_string = self.sanitize(&value.to_string());
+    pub fn add_headline(mut self, key: impl AsRef<str>, value: impl AsRef<str>) -> Self {
+        let key_string = self.sanitize(key.as_ref());
+        let value_string = self.sanitize(value.as_ref());
 
         let mut headlines: HashMap<String, String> = self.headlines.unwrap_or_default();
 
@@ -352,12 +358,17 @@ impl DataviewBuilder {
     }
 
     /// Adds a single cell value at `row`/`column`, recording insertion order.
-    pub fn add_value<T: ToString>(mut self, row: &str, column: &str, value: T) -> Self {
-        let column_string = self.sanitize(column);
-        let row_string = self.sanitize(row);
-        let value_string = self.sanitize(&value.to_string());
+    pub fn add_value(
+        mut self,
+        row: impl AsRef<str>,
+        column: impl AsRef<str>,
+        value: impl AsRef<str>,
+    ) -> Self {
+        let column_string = self.sanitize(column.as_ref());
+        let row_string = self.sanitize(row.as_ref());
+        let value_string = self.sanitize(value.as_ref());
 
-        let mut values: HashMap<(String, String), String> = self.values.unwrap_or_default();
+        let mut values: HashMap<String, HashMap<String, String>> = self.values.unwrap_or_default();
 
         // Track columns in order of insertion (if new)
         if !self.column_order.contains(&column_string) {
@@ -369,7 +380,10 @@ impl DataviewBuilder {
             self.row_order.push(row_string.clone());
         }
 
-        values.insert((row_string, column_string), value_string);
+        values
+            .entry(row_string)
+            .or_default()
+            .insert(column_string, value_string);
         self.values = Some(values);
         self
     }
@@ -392,13 +406,13 @@ impl DataviewBuilder {
     ///     .build();
     /// ```
     pub fn add_row(mut self, row: Row) -> Self {
-        for (col, val) in row.cells {
-            self = self.add_value(&row.name, &col, &val);
+        let Row { name, cells } = row;
+        for (col, val) in cells {
+            self = self.add_value(&name, col, val);
         }
         self
     }
 
-    /// Sorts rows in ascending order by row name. Opt-in; default is insertion order.
     /// Sorts rows in ascending order by row name. Opt-in; default is insertion order.
     pub fn sort_rows(mut self) -> Self {
         self.row_order.sort();
@@ -426,7 +440,7 @@ impl DataviewBuilder {
 
     /// Builds the `Dataview`, consuming the builder.
     ///
-    /// The `row_header` must be set before the build or a panic will occur.
+    /// Returns [`DataviewError::MissingRowHeader`] if the row header is not set.
     /// There must be at least one value.
     /// Headlines are optional.
     ///
@@ -547,11 +561,11 @@ mod tests {
         assert_eq!(dataview.row_header(), "ID");
 
         // Test headline
-        assert_eq!(dataview.headline("AverageAge"), Some(&"30".to_string()));
+        assert_eq!(dataview.headline("AverageAge"), Some("30"));
 
         // Test values
-        assert_eq!(dataview.value("1", "Name"), Some(&"Alice".to_string()));
-        assert_eq!(dataview.value("1", "Age"), Some(&"30".to_string()));
+        assert_eq!(dataview.value("1", "Name"), Some("Alice"));
+        assert_eq!(dataview.value("1", "Age"), Some("30"));
 
         // Test structure
         assert_eq!(dataview.row_order().len(), 1);
@@ -714,7 +728,7 @@ queue3,7\\,331,45\\,000,0.16,online";
         assert_eq!(dataview.row_order()[3], "cpu_2".to_string());
         assert_eq!(dataview.row_order()[4], "cpu_0_logical#1".to_string());
 
-        assert_eq!(dataview.headlines.len(), 5); // 5 headlines
+        assert_eq!(dataview.headline_order().len(), 5); // 5 headlines
 
         // Assert column ordering is preserved
         let expected_columns = [
@@ -806,8 +820,8 @@ queue3,7\\,331,45\\,000,0.16,online";
             .build()?;
 
         // Value should be overwritten
-        assert_eq!(dataview.headline("Status"), Some(&"updated".to_string()));
-        assert_eq!(dataview.headline("Count"), Some(&"10".to_string()));
+        assert_eq!(dataview.headline("Status"), Some("updated"));
+        assert_eq!(dataview.headline("Count"), Some("10"));
 
         // Order should reflect first insertion: Status before Count
         assert_eq!(dataview.headline_order(), &["Status", "Count"]);
@@ -832,7 +846,7 @@ queue3,7\\,331,45\\,000,0.16,online";
             .build()?;
 
         // Value should be overwritten
-        assert_eq!(dataview.value("row1", "colA"), Some(&"second".to_string()));
+        assert_eq!(dataview.value("row1", "colA"), Some("second"));
 
         // Row and column order should reflect first insertion only (no duplicates)
         assert_eq!(dataview.row_order(), &["row1", "row2"]);
@@ -1037,7 +1051,7 @@ cache,degraded,45,7";
     fn test_null_byte_in_row_name() -> Result<(), DataviewError> {
         let dataview = Dataview::builder()
             .set_row_header("id")
-            .add_value("row\01", "col", "val")
+            .add_value("row\u{0}1", "col", "val")
             .build()?;
 
         let output = dataview.to_string();
@@ -1344,10 +1358,9 @@ mod property_tests {
                 // It is escaped if it is preceded by a backslash that is NOT itself escaped.
 
                 let mut raw_commas = 0;
-                let mut chars = line.chars().peekable();
                 let mut escaped = false;
 
-                while let Some(c) = chars.next() {
+                for c in line.chars() {
                     if escaped {
                         escaped = false;
                     } else if c == '\\' {

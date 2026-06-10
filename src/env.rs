@@ -2,6 +2,7 @@ use std::env;
 use std::error::Error;
 use std::fmt;
 
+#[non_exhaustive]
 pub enum EnvError {
     VarError(env::VarError),
     IoError(std::io::Error),
@@ -17,6 +18,9 @@ pub enum EnvError {
 impl fmt::Debug for EnvError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            EnvError::VarError(env::VarError::NotUnicode(_)) => {
+                write!(f, "VarError(NotUnicode([REDACTED]))")
+            }
             EnvError::VarError(e) => f.debug_tuple("VarError").field(e).finish(),
             EnvError::IoError(e) => f.debug_tuple("IoError").field(e).finish(),
             EnvError::MissingSecureEnvSupport => write!(f, "MissingSecureEnvSupport"),
@@ -45,6 +49,10 @@ impl From<std::io::Error> for EnvError {
 impl fmt::Display for EnvError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            EnvError::VarError(env::VarError::NotUnicode(_)) => write!(
+                f,
+                "Environment variable error: environment variable value is not valid Unicode"
+            ),
             EnvError::VarError(e) => write!(f, "Environment variable error: {}", e),
             EnvError::IoError(e) => write!(f, "IO error: {}", e),
             EnvError::MissingSecureEnvSupport => {
@@ -58,7 +66,7 @@ impl fmt::Display for EnvError {
             #[cfg(feature = "secure-env")]
             EnvError::MissingKeyFile => write!(f, "Missing key file for decryption"),
             #[cfg(feature = "secure-env")]
-            EnvError::KeyFileFormatError(msg) => write!(f, "Key file format error: {}", msg),
+            EnvError::KeyFileFormatError(_) => write!(f, "Key file format error"),
         }
     }
 }
@@ -66,6 +74,7 @@ impl fmt::Display for EnvError {
 impl Error for EnvError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
+            EnvError::VarError(env::VarError::NotUnicode(_)) => None,
             EnvError::VarError(e) => Some(e),
             EnvError::IoError(e) => Some(e),
             _ => None,
@@ -123,6 +132,34 @@ mod tests {
     use super::*;
     use temp_env::with_var;
 
+    #[cfg(unix)]
+    fn invalid_secret_value() -> std::ffi::OsString {
+        use std::os::unix::ffi::OsStringExt;
+
+        std::ffi::OsString::from_vec(b"secret-\xFF-token".to_vec())
+    }
+
+    #[cfg(unix)]
+    fn assert_notunicode_error_redacted(err: &EnvError) {
+        assert!(
+            matches!(err, EnvError::VarError(env::VarError::NotUnicode(_))),
+            "expected NotUnicode EnvError, got {err:?}"
+        );
+        assert_eq!(
+            err.to_string(),
+            "Environment variable error: environment variable value is not valid Unicode"
+        );
+        assert_eq!(format!("{err:?}"), "VarError(NotUnicode([REDACTED]))");
+        assert!(
+            std::error::Error::source(err).is_none(),
+            "NotUnicode source should not expose std::env::VarError"
+        );
+
+        let formatted = format!("{err} {err:?}");
+        assert!(!formatted.contains("secret"));
+        assert!(!formatted.contains("token"));
+    }
+
     #[test]
     fn test_get_env() {
         with_var("TEST_VAR", Some("test_value"), || {
@@ -136,6 +173,27 @@ mod tests {
                 get_var_or("NON_EXISTENT_VAR", "default").unwrap(),
                 "default"
             );
+        });
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_notunicode_var_error_redacts_display_debug_and_source() {
+        let err = EnvError::VarError(env::VarError::NotUnicode(invalid_secret_value()));
+        assert_notunicode_error_redacted(&err);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_get_var_redacts_notunicode_errors() {
+        let name = "GENEOS_TOOLKIT_TEST_INVALID_UNICODE";
+
+        with_var(name, Some(invalid_secret_value()), || {
+            let err = get_var(name).unwrap_err();
+            assert_notunicode_error_redacted(&err);
+
+            let err = get_var_or(name, "default").unwrap_err();
+            assert_notunicode_error_redacted(&err);
         });
     }
 

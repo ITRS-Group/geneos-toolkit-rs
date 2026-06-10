@@ -1,0 +1,1 @@
+{"ts":"2026-06-10T03:39:03.096Z","type":"order.created","summary":"Fix code quality finding 5: builder APIs mix &str parameters with impl ToString parameters across add_headline, add_value, set_row_header, Row::new, and add_cell. Choose and apply a consistent string-input strategy such as impl Into<String> or AsRef<str>."}

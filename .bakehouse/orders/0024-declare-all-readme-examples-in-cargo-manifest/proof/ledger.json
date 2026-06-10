@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "orderId": 24,
+  "updatedAt": "2026-06-10T04:39:30Z",
+  "acceptanceCriteria": [
+    {
+      "id": "AC-001",
+      "summary": "Cargo.toml has explicit [[example]] entries for each README-listed example in examples/.",
+      "status": "passed"
+    },
+    {
+      "id": "AC-002",
+      "summary": "Existing example names and paths remain unchanged.",
+      "status": "passed"
+    },
+    {
+      "id": "AC-003",
+      "summary": "cargo test --test examples_test passes.",
+      "status": "passed"
+    }
+  ],
+  "gates": [
+    {
+      "id": "cook-implementation",
+      "phase": "cook",
+      "category": "implementation",
+      "status": "passed",
+      "required": true,
+      "summary": "Scoped implementation recorded.",
+      "evidence": [
+        "05-cook.md"
+      ],
+      "checkedAt": "2026-06-10T04:39:30Z",
+      "checkedBy": "manual"
+    },
+    {
+      "id": "taste-validation",
+      "phase": "taste",
+      "category": "test",
+      "status": "passed",
+      "required": true,
+      "summary": "Order-specific and full validation passed.",
+      "evidence": [
+        "proof/tests.md",
+        "06-taste.md"
+      ],
+      "checkedAt": "2026-06-10T04:39:30Z",
+      "checkedBy": "manual"
+    },
+    {
+      "id": "taste-security",
+      "phase": "taste",
+      "category": "security",
+      "status": "passed",
+      "required": true,
+      "summary": "Security audit passed with 0 findings.",
+      "evidence": [
+        "proof/security.md",
+        ".bakehouse/security-audit-20260610-044232.md"
+      ],
+      "checkedAt": "2026-06-10T04:39:30Z",
+      "checkedBy": "manual"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "E-001-validation",
+      "acceptanceCriterionIds": [
+        "AC-001",
+        "AC-002",
+        "AC-003"
+      ],
+      "kind": "test",
+      "path": "proof/tests.md",
+      "summary": "Order-specific and full validation passed.",
+      "recordedAt": "2026-06-10T04:39:30Z",
+      "status": "passed"
+    },
+    {
+      "id": "E-002-review",
+      "acceptanceCriterionIds": [
+        "AC-001",
+        "AC-002",
+        "AC-003"
+      ],
+      "kind": "review",
+      "path": "proof/review.md",
+      "summary": "Scoped diff reviewed against acceptance criteria.",
+      "recordedAt": "2026-06-10T04:39:30Z",
+      "status": "passed"
+    },
+    {
+      "id": "E-003-security",
+      "acceptanceCriterionIds": [
+        "AC-001",
+        "AC-002",
+        "AC-003"
+      ],
+      "kind": "security",
+      "path": "proof/security.md",
+      "summary": "Security audit passed with 0 findings.",
+      "recordedAt": "2026-06-10T04:39:30Z",
+      "status": "passed"
+    }
+  ],
+  "cookSlices": []
+}

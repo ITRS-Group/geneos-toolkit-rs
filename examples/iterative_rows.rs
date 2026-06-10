@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 3. Iterate over the data and add rows
     // Note: Since the builder methods consume 'self', we reassign 'builder' in each iteration
     for proc in processes {
-        let row = Row::new(proc.id)
+        let row = Row::new(proc.id.to_string())
             .add_cell("name", proc.name)
             .add_cell("cpu", format!("{:.1}%", proc.cpu))
             .add_cell("memory", format!("{}MB", proc.mem));

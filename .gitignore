@@ -1,3 +1,9 @@
 .opencode/session.json
 /target
 Cargo.lock
+
+# Bakehouse transient run logs
+.bakehouse/runs/*
+!.bakehouse/runs/.gitkeep
+# Bakehouse transient review-panel inputs
+.bakehouse/**/panel-inputs/

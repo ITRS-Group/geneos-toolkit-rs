@@ -1,0 +1,1 @@
+{"ts":"2026-06-10T03:39:03.217Z","type":"order.created","summary":"Fix clippy finding: src/dataview.rs uses while let Some(c) = chars.next() in a property test where a for loop over the iterator is clearer and clippy-clean."}

@@ -1,5 +1,6 @@
 use pretty_assertions::assert_eq;
 use std::fs;
+use std::path::PathBuf;
 use std::process::Command;
 use std::str;
 
@@ -95,7 +96,9 @@ fn test_all_examples_compile() {
         "redis_info_monitor",
     ];
 
-    if let Ok(entries) = fs::read_dir("examples") {
+    let examples_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples");
+
+    if let Ok(entries) = fs::read_dir(examples_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.extension().is_some_and(|ext| ext == "rs") {

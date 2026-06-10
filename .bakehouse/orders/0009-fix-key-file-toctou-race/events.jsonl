@@ -1,0 +1,8 @@
+{"ts":"2026-06-10T03:39:02.679Z","type":"order.created","summary":"Fix security finding S1: src/secure_env.rs parse_key_file checks key-file metadata with fs::metadata(path) before File::open(path), allowing a path or symlink swap between check and use. Open the key file first, then validate metadata from the opened file descriptor before reading."}
+{"ts":"2026-06-10T03:48:35Z","type":"phase.measure","summary":"Measured secure-env parse_key_file TOCTOU scope and proof plan."}
+{"ts":"2026-06-10T03:48:35Z","type":"phase.recipe","summary":"Selected open-first descriptor-bound metadata validation with deterministic regression test."}
+{"ts":"2026-06-10T03:48:35Z","type":"phase.prep","summary":"Prepared security bug-fix slice with red-green-refactor proof."}
+{"ts":"2026-06-10T03:50:00Z","type":"cook.red","summary":"Regression test failed before implementation: missing parse_key_file_with_opener helper (exit 101)."}
+{"ts":"2026-06-10T03:51:00Z","type":"cook.green","summary":"Implemented open-first descriptor-bound parsing; targeted regression passed."}
+{"ts":"2026-06-10T03:53:53Z","type":"taste.security","summary":"Security audit of src/secure_env.rs passed with 0 findings."}
+{"ts":"2026-06-10T03:54:51Z","type":"phase.served","summary":"Order served with all-targets clippy waiver for unrelated orders #25/#26."}

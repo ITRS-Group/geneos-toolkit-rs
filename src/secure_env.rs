@@ -3,7 +3,7 @@ use cbc::Decryptor;
 use cipher::block_padding::Pkcs7;
 use cipher::{BlockDecryptMut, KeyIvInit};
 use hex::FromHex;
-use std::fs::{self, File};
+use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use zeroize::Zeroizing;
 
@@ -12,27 +12,24 @@ const MAX_KEY_FILE_SIZE: u64 = 1024;
 type KeyComponents = (Zeroizing<String>, Zeroizing<String>, Zeroizing<String>);
 
 fn parse_key_file(path: &str) -> Result<KeyComponents, EnvError> {
-    let meta = fs::metadata(path)
+    parse_key_file_with_opener(path, open_key_file)
+}
+
+fn open_key_file(path: &str) -> io::Result<File> {
+    File::open(path)
+}
+
+fn parse_key_file_with_opener(
+    path: &str,
+    open: impl FnOnce(&str) -> io::Result<File>,
+) -> Result<KeyComponents, EnvError> {
+    let file = open(path)
         .map_err(|err| EnvError::IoError(io::Error::new(err.kind(), "cannot open key file")))?;
+    parse_open_key_file(file)
+}
 
-    if meta.len() > MAX_KEY_FILE_SIZE {
-        return Err(EnvError::KeyFileFormatError(
-            "key file too large".to_string(),
-        ));
-    }
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        if meta.permissions().mode() & 0o004 != 0 {
-            return Err(EnvError::KeyFileFormatError(
-                "key file is world-readable".to_string(),
-            ));
-        }
-    }
-
-    let file = File::open(path)
-        .map_err(|err| EnvError::IoError(io::Error::new(err.kind(), "cannot open key file")))?;
+fn parse_open_key_file(file: File) -> Result<KeyComponents, EnvError> {
+    validate_key_file_metadata(&file)?;
     let reader = BufReader::new(file);
 
     let mut salt: Option<Zeroizing<String>> = None;
@@ -93,6 +90,30 @@ fn parse_key_file(path: &str) -> Result<KeyComponents, EnvError> {
     let iv = iv.ok_or_else(|| EnvError::KeyFileFormatError("incomplete key file".to_string()))?;
 
     Ok((salt, key, iv))
+}
+
+fn validate_key_file_metadata(file: &File) -> Result<(), EnvError> {
+    let meta = file
+        .metadata()
+        .map_err(|err| EnvError::IoError(io::Error::new(err.kind(), "cannot open key file")))?;
+
+    if meta.len() > MAX_KEY_FILE_SIZE {
+        return Err(EnvError::KeyFileFormatError(
+            "key file too large".to_string(),
+        ));
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if meta.permissions().mode() & 0o004 != 0 {
+            return Err(EnvError::KeyFileFormatError(
+                "key file is world-readable".to_string(),
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 /// Decrypts an encrypted value using AES-256-CBC with PKCS7 padding.
@@ -195,6 +216,7 @@ mod tests {
     use temp_env::with_var;
     use tempfile::tempdir;
 
+    // TEST KEY MATERIAL ONLY - never use these keys or ciphertexts in production.
     const VALID_KEY_FILE_CONTENTS: &str = r#"salt=89A6A795C9CCECB5
 key=26D6EDD53A0AFA8FA1AA3FBCD2FFF2A0BF4809A4E04511F629FC732C2A42A8FC
 iv=472A3557ADDD2525AD4E555738636A67
@@ -217,6 +239,51 @@ iv=472A3557ADDD2525AD4E555738636A67
 
     const ENCRYPTED_VAR_2: &str = "+encs+3510EEEF4163EB21C671FB5C57ADFCE2";
     const DECRYPTED_VAR_2: &str = "/";
+
+    #[cfg(unix)]
+    fn invalid_secret_value() -> std::ffi::OsString {
+        use std::os::unix::ffi::OsStringExt;
+
+        std::ffi::OsString::from_vec(b"secure-secret-\xFF-token".to_vec())
+    }
+
+    fn assert_key_file_format_error(err: &EnvError, expected_inner: &str) {
+        match err {
+            EnvError::KeyFileFormatError(inner) => assert!(
+                inner.contains(expected_inner),
+                "expected inner key-file error to contain {expected_inner:?}, got: {inner}"
+            ),
+            other => panic!("expected KeyFileFormatError, got {other:?}"),
+        }
+
+        let display = err.to_string();
+        assert_eq!(display, "Key file format error");
+        assert!(
+            !display.contains(expected_inner),
+            "Display must not expose inner key-file details, got: {display}"
+        );
+    }
+
+    #[cfg(unix)]
+    fn assert_notunicode_error_redacted(err: &EnvError) {
+        assert!(
+            matches!(err, EnvError::VarError(std::env::VarError::NotUnicode(_))),
+            "expected NotUnicode EnvError, got {err:?}"
+        );
+        assert_eq!(
+            err.to_string(),
+            "Environment variable error: environment variable value is not valid Unicode"
+        );
+        assert_eq!(format!("{err:?}"), "VarError(NotUnicode([REDACTED]))");
+        assert!(
+            std::error::Error::source(err).is_none(),
+            "NotUnicode source should not expose std::env::VarError"
+        );
+
+        let formatted = format!("{err} {err:?}");
+        assert!(!formatted.contains("secure-secret"));
+        assert!(!formatted.contains("token"));
+    }
 
     #[test]
     fn test_parse_key_file() {
@@ -317,34 +384,20 @@ iv=472A3557ADDD2525AD4E555738636A67
 
     #[cfg(unix)]
     #[test]
-    #[ignore = "Mutates process env; run explicitly if needed"]
-    fn test_get_secure_var_or_propagates_not_unicode() {
-        use std::ffi::OsString;
-        use std::os::unix::ffi::OsStringExt;
-
+    fn test_get_secure_var_paths_redact_not_unicode() {
         let dir = tempdir().unwrap();
         let key_file_path = dir.path().join("key-file");
         write_key_file(&key_file_path, VALID_KEY_FILE_CONTENTS);
+        let key_file = key_file_path.to_str().unwrap();
+        let name = "BAD_UNICODE_VAR";
 
-        let bad_value = OsString::from_vec(vec![0xFF, 0xFE, 0xFD]);
-        unsafe {
-            std::env::set_var("BAD_UNICODE_VAR", bad_value);
-        }
+        with_var(name, Some(invalid_secret_value()), || {
+            let err = get_secure_var(name, key_file).unwrap_err();
+            assert_notunicode_error_redacted(&err);
 
-        let result = get_secure_var_or(
-            "BAD_UNICODE_VAR",
-            key_file_path.to_str().unwrap(),
-            "fallback",
-        );
-
-        assert!(matches!(
-            result,
-            Err(EnvError::VarError(std::env::VarError::NotUnicode(_)))
-        ));
-
-        unsafe {
-            std::env::remove_var("BAD_UNICODE_VAR");
-        }
+            let err = get_secure_var_or(name, key_file, "fallback").unwrap_err();
+            assert_notunicode_error_redacted(&err);
+        });
     }
 
     #[test]
@@ -515,11 +568,7 @@ iv=472A3557ADDD2525AD4E555738636A67
         );
         let result = parse_key_file(key_file_path.to_str().unwrap());
         let err = result.expect_err("expected error for duplicate key");
-        let msg = format!("{}", err);
-        assert!(
-            msg.contains("duplicate"),
-            "expected 'duplicate' in error, got: {msg}"
-        );
+        assert_key_file_format_error(&err, "duplicate");
     }
 
     #[test]
@@ -536,11 +585,7 @@ iv=472A3557ADDD2525AD4E555738636A67
         );
         let result = parse_key_file(key_file_path.to_str().unwrap());
         let err = result.expect_err("expected error for oversize key file");
-        let msg = format!("{}", err);
-        assert!(
-            msg.contains("too large"),
-            "expected 'too large' in error, got: {msg}"
-        );
+        assert_key_file_format_error(&err, "too large");
     }
 
     #[test]
@@ -553,11 +598,7 @@ iv=472A3557ADDD2525AD4E555738636A67
         );
         let result = parse_key_file(key_file_path.to_str().unwrap());
         let err = result.expect_err("expected error for line without '='");
-        let msg = format!("{}", err);
-        assert!(
-            msg.contains("invalid line"),
-            "expected 'invalid line' in error, got: {msg}"
-        );
+        assert_key_file_format_error(&err, "invalid line");
     }
 
     #[cfg(unix)]
@@ -572,15 +613,42 @@ iv=472A3557ADDD2525AD4E555738636A67
 
         let result = parse_key_file(key_file_path.to_str().unwrap());
         let err = result.expect_err("expected error for world-readable key file");
-        let msg = format!("{}", err);
-        assert!(
-            msg.contains("world-readable"),
-            "expected 'world-readable' in error, got: {msg}"
+        assert_key_file_format_error(&err, "world-readable");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_parse_key_file_uses_open_file_descriptor_for_checks_and_read() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempdir().unwrap();
+        let key_file_path = dir.path().join("key-file");
+        let replacement_path = dir.path().join("replacement-key-file");
+        write_key_file(&key_file_path, VALID_KEY_FILE_CONTENTS);
+        write_key_file(
+            &replacement_path,
+            "salt=replacement\nkey=replacement\niv=replacement",
         );
+        std::fs::set_permissions(&replacement_path, std::fs::Permissions::from_mode(0o644))
+            .unwrap();
+
+        let result = parse_key_file_with_opener(key_file_path.to_str().unwrap(), |path| {
+            let file = File::open(path)?;
+            std::fs::rename(&replacement_path, path)?;
+            Ok(file)
+        });
+
+        let (salt, key, iv) = result.expect("expected parser to use the opened descriptor");
+        assert_eq!(&*salt, "89A6A795C9CCECB5");
+        assert_eq!(
+            &*key,
+            "26D6EDD53A0AFA8FA1AA3FBCD2FFF2A0BF4809A4E04511F629FC732C2A42A8FC"
+        );
+        assert_eq!(&*iv, "472A3557ADDD2525AD4E555738636A67");
     }
 
     #[test]
-    fn test_env_error_debug_redacts_crypto() {
+    fn test_env_error_formatting_redacts_crypto() {
         let decryption_err = EnvError::DecryptionFailed("secret stuff".to_string());
         let debug_str = format!("{:?}", decryption_err);
         assert!(
@@ -593,6 +661,13 @@ iv=472A3557ADDD2525AD4E555738636A67
         );
 
         let key_err = EnvError::KeyFileFormatError("secret stuff".to_string());
+        let display_str = key_err.to_string();
+        assert_eq!(display_str, "Key file format error");
+        assert!(
+            !display_str.contains("secret stuff"),
+            "Display must not expose inner message, got: {display_str}"
+        );
+
         let debug_str = format!("{:?}", key_err);
         assert!(
             debug_str.contains("[REDACTED]"),

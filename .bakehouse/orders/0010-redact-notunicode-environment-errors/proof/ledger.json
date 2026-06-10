@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "orderId": 10,
+  "updatedAt": "2026-06-10T04:29:57Z",
+  "acceptanceCriteria": [
+    {
+      "id": "AC-001",
+      "summary": "Display for EnvError::VarError(NotUnicode(_)) emits a fixed message without the raw value.",
+      "status": "passed"
+    },
+    {
+      "id": "AC-002",
+      "summary": "Debug for EnvError::VarError(NotUnicode(_)) emits a fixed redacted representation.",
+      "status": "passed"
+    },
+    {
+      "id": "AC-003",
+      "summary": "Error::source for NotUnicode does not expose std::env::VarError output.",
+      "status": "passed"
+    },
+    {
+      "id": "AC-004",
+      "summary": "Regression tests cover invalid-Unicode environment values and verify formatted errors omit raw values.",
+      "status": "passed"
+    },
+    {
+      "id": "AC-005",
+      "summary": "cargo test, cargo test --features secure-env, and all-targets all-features clippy pass.",
+      "status": "passed"
+    }
+  ],
+  "gates": [
+    {
+      "id": "cook-implementation",
+      "phase": "cook",
+      "category": "implementation",
+      "status": "passed",
+      "required": true,
+      "summary": "NotUnicode redaction implemented with regression tests.",
+      "evidence": ["05-cook.md", "proof/tests.md"],
+      "checkedAt": "2026-06-10T04:29:57Z",
+      "checkedBy": "manual"
+    },
+    {
+      "id": "taste-tests",
+      "phase": "taste",
+      "category": "test",
+      "status": "passed",
+      "required": true,
+      "summary": "Required test and clippy commands passed.",
+      "evidence": ["proof/tests.md", "06-taste.md"],
+      "checkedAt": "2026-06-10T04:29:57Z",
+      "checkedBy": "manual"
+    },
+    {
+      "id": "taste-security",
+      "phase": "taste",
+      "category": "security",
+      "status": "passed",
+      "required": true,
+      "summary": "Security audit found 0 findings.",
+      "evidence": ["proof/security.md", "security-audit-20260610-042916.md"],
+      "checkedAt": "2026-06-10T04:29:57Z",
+      "checkedBy": "manual"
+    },
+    {
+      "id": "finish-served",
+      "phase": "finish",
+      "category": "served",
+      "status": "passed",
+      "required": true,
+      "summary": "Finish and served summaries recorded.",
+      "evidence": ["07-finish.md", "08-served.md"],
+      "checkedAt": "2026-06-10T04:29:57Z",
+      "checkedBy": "manual"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "E-001-tests",
+      "acceptanceCriterionIds": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005"],
+      "kind": "test",
+      "path": "proof/tests.md",
+      "summary": "NotUnicode tests, full test suites, fmt, and clippy passed after red/green implementation.",
+      "recordedAt": "2026-06-10T04:29:57Z",
+      "status": "passed"
+    },
+    {
+      "id": "E-002-security",
+      "acceptanceCriterionIds": ["AC-001", "AC-002", "AC-003", "AC-004"],
+      "kind": "security",
+      "path": "proof/security.md",
+      "summary": "Security review confirmed no raw NotUnicode value is exposed and audit found 0 findings.",
+      "recordedAt": "2026-06-10T04:29:57Z",
+      "status": "passed"
+    },
+    {
+      "id": "E-003-taste",
+      "acceptanceCriterionIds": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005"],
+      "kind": "review",
+      "path": "06-taste.md",
+      "summary": "Taste accepted all criteria.",
+      "recordedAt": "2026-06-10T04:29:57Z",
+      "status": "passed"
+    }
+  ],
+  "cookSlices": []
+}

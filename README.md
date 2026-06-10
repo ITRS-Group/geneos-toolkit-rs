@@ -36,7 +36,9 @@ geneos-toolkit = "0.4"
 - The row header is mandatory, set with `set_row_header`.
 - Headlines are optional and can be added with `add_headline`.
 - Add values with `add_value(row, column, value)`.
-- Add whole rows with `Row::new(...).add_cell(...).add_row(row)`.
+- Add whole rows with `Row::new(...).add_cell(...).add_row(row)`; row names are required.
+- Builder inputs accept string-like values (`impl AsRef<str>`); convert numeric values with `.to_string()` before passing them.
+- Public error enums are `#[non_exhaustive]`; downstream matches should include a wildcard arm.
 - Rows/columns keep insertion order by default; optional sorting is available via
   `sort_rows()`, `sort_rows_by(...)`, or `sort_rows_with(...)`.
 - Headlines are ordered by the order in which they were added to the Dataview.

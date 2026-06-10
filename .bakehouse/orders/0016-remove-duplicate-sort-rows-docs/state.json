@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "id": 16,
+  "slug": "remove-duplicate-sort-rows-docs",
+  "title": "Remove duplicate sort_rows docs",
+  "kind": "order",
+  "phase": "served",
+  "phaseIndex": 8,
+  "flowState": "terminal",
+  "priority": "p3",
+  "batchId": null,
+  "disposition": "open",
+  "abandonReason": null,
+  "abandonRefs": [],
+  "abandonNote": null,
+  "abandonedAt": null,
+  "blockedReason": null,
+  "createdAt": "2026-06-10T03:39:03.046Z",
+  "updatedAt": "2026-06-10T04:39:30Z",
+  "resume": {
+    "command": "/status 16",
+    "reason": "order served by /bake all batch",
+    "artifact": "08-served.md",
+    "requiredInputs": [
+      "08-served.md",
+      "06-taste.md"
+    ]
+  },
+  "artifacts": {
+    "order": "01-order.md",
+    "measure": "02-measure.md",
+    "recipe": "03-recipe.md",
+    "prep": "04-prep.md",
+    "cook": "05-cook.md",
+    "taste": "06-taste.md",
+    "finish": "07-finish.md",
+    "served": "08-served.md"
+  },
+  "dependsOn": [],
+  "kickbacks": []
+}

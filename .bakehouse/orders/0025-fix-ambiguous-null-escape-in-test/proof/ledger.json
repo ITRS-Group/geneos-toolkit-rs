@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "orderId": 25,
+  "updatedAt": "2026-06-10T04:29:57Z",
+  "acceptanceCriteria": [
+    {
+      "id": "AC-001",
+      "summary": "The ambiguous null escape is replaced with an unambiguous null-byte expression.",
+      "status": "passed"
+    },
+    {
+      "id": "AC-002",
+      "summary": "The test continues to cover a row name containing a null byte followed by a digit.",
+      "status": "passed"
+    },
+    {
+      "id": "AC-003",
+      "summary": "cargo clippy --all-targets --all-features -- -D warnings passes.",
+      "status": "passed"
+    }
+  ],
+  "gates": [
+    {
+      "id": "cook-test-cleanup",
+      "phase": "cook",
+      "category": "implementation",
+      "status": "passed",
+      "required": true,
+      "summary": "Ambiguous null escape replaced.",
+      "evidence": ["05-cook.md", "proof/tests.md"],
+      "checkedAt": "2026-06-10T04:29:57Z",
+      "checkedBy": "manual"
+    },
+    {
+      "id": "taste-tests",
+      "phase": "taste",
+      "category": "test",
+      "status": "passed",
+      "required": true,
+      "summary": "Targeted test and clippy passed.",
+      "evidence": ["proof/tests.md", "06-taste.md"],
+      "checkedAt": "2026-06-10T04:29:57Z",
+      "checkedBy": "manual"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "E-001-tests",
+      "acceptanceCriterionIds": ["AC-001", "AC-002", "AC-003"],
+      "kind": "test",
+      "path": "proof/tests.md",
+      "summary": "Targeted null-byte row-name test and all-targets clippy passed.",
+      "recordedAt": "2026-06-10T04:29:57Z",
+      "status": "passed"
+    }
+  ],
+  "cookSlices": []
+}

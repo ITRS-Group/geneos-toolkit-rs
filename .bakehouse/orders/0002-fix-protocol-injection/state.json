@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "id": 2,
+  "slug": "fix-protocol-injection",
+  "title": "Fix Protocol Injection",
+  "kind": "order",
+  "phase": "served",
+  "phaseIndex": 8,
+  "flowState": "terminal",
+  "priority": "p0",
+  "batchId": null,
+  "disposition": "open",
+  "abandonReason": null,
+  "abandonRefs": [],
+  "abandonNote": null,
+  "abandonedAt": null,
+  "blockedReason": null,
+  "createdAt": "2026-06-10T03:23:57.962Z",
+  "updatedAt": "2026-06-10T03:23:57.962Z",
+  "resume": {
+    "command": "/status 2",
+    "reason": "Migrated from Forge task fix-protocol-injection",
+    "artifact": "08-served.md",
+    "requiredInputs": [
+      "08-served.md"
+    ]
+  },
+  "artifacts": {
+    "order": "01-order.md",
+    "measure": "02-measure.md",
+    "recipe": "03-recipe.md",
+    "prep": "04-prep.md",
+    "cook": "05-cook.md",
+    "taste": "06-taste.md",
+    "finish": "07-finish.md",
+    "served": "08-served.md"
+  },
+  "dependsOn": [],
+  "kickbacks": []
+}

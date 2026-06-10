@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "orderId": 18,
+  "updatedAt": "2026-06-10T04:39:30Z",
+  "acceptanceCriteria": [
+    {
+      "id": "AC-001",
+      "summary": "A single parameter-type strategy is chosen and applied consistently to row/header/headline/cell APIs where appropriate.",
+      "status": "passed"
+    },
+    {
+      "id": "AC-002",
+      "summary": "Common call sites with &str and String remain ergonomic; any intentionally removed ToString/numeric behavior is documented.",
+      "status": "passed"
+    },
+    {
+      "id": "AC-003",
+      "summary": "README examples, rustdoc examples, and examples/ compile after the signature changes.",
+      "status": "passed"
+    },
+    {
+      "id": "AC-004",
+      "summary": "cargo test and cargo clippy --all-targets --all-features -- -D warnings pass.",
+      "status": "passed"
+    }
+  ],
+  "gates": [
+    {
+      "id": "cook-implementation",
+      "phase": "cook",
+      "category": "implementation",
+      "status": "passed",
+      "required": true,
+      "summary": "Scoped implementation recorded.",
+      "evidence": [
+        "05-cook.md"
+      ],
+      "checkedAt": "2026-06-10T04:39:30Z",
+      "checkedBy": "manual"
+    },
+    {
+      "id": "taste-validation",
+      "phase": "taste",
+      "category": "test",
+      "status": "passed",
+      "required": true,
+      "summary": "Order-specific and full validation passed.",
+      "evidence": [
+        "proof/tests.md",
+        "06-taste.md"
+      ],
+      "checkedAt": "2026-06-10T04:39:30Z",
+      "checkedBy": "manual"
+    },
+    {
+      "id": "taste-security",
+      "phase": "taste",
+      "category": "security",
+      "status": "passed",
+      "required": true,
+      "summary": "Security audit passed with 0 findings.",
+      "evidence": [
+        "proof/security.md",
+        ".bakehouse/security-audit-20260610-044232.md"
+      ],
+      "checkedAt": "2026-06-10T04:39:30Z",
+      "checkedBy": "manual"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "E-001-validation",
+      "acceptanceCriterionIds": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004"
+      ],
+      "kind": "test",
+      "path": "proof/tests.md",
+      "summary": "Order-specific and full validation passed.",
+      "recordedAt": "2026-06-10T04:39:30Z",
+      "status": "passed"
+    },
+    {
+      "id": "E-002-review",
+      "acceptanceCriterionIds": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004"
+      ],
+      "kind": "review",
+      "path": "proof/review.md",
+      "summary": "Scoped diff reviewed against acceptance criteria.",
+      "recordedAt": "2026-06-10T04:39:30Z",
+      "status": "passed"
+    },
+    {
+      "id": "E-003-security",
+      "acceptanceCriterionIds": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004"
+      ],
+      "kind": "security",
+      "path": "proof/security.md",
+      "summary": "Security audit passed with 0 findings.",
+      "recordedAt": "2026-06-10T04:39:30Z",
+      "status": "passed"
+    }
+  ],
+  "cookSlices": []
+}

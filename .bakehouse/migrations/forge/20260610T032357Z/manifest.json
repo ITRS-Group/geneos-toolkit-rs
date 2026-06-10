@@ -1,0 +1,381 @@
+{
+  "schemaVersion": 1,
+  "source": "forge",
+  "target": "bakehouse",
+  "runId": "20260610T032357Z",
+  "migratedAt": "2026-06-10T03:23:57.962Z",
+  "root": ".",
+  "forgeRemoved": true,
+  "committed": false,
+  "commitSha": null,
+  "commitMessage": null,
+  "counts": {
+    "activeTasks": 7,
+    "archivedTasks": 1,
+    "totalTasks": 8,
+    "migratedOrders": 8,
+    "servedOrders": 8,
+    "abandonedOrders": 0,
+    "blockedOrders": 0,
+    "dependencyEdges": 0,
+    "warnings": 1
+  },
+  "mappings": [
+    {
+      "forgeSlug": "security-hardening",
+      "forgeId": 1,
+      "bakehouseId": 1,
+      "bakehouseSlug": "security-hardening",
+      "sourcePath": ".forge/tasks/security-hardening.yaml",
+      "archived": false
+    },
+    {
+      "forgeSlug": "fix-protocol-injection",
+      "forgeId": 2,
+      "bakehouseId": 2,
+      "bakehouseSlug": "fix-protocol-injection",
+      "sourcePath": ".forge/tasks/fix-protocol-injection.yaml",
+      "archived": false
+    },
+    {
+      "forgeSlug": "fix-ci-pipeline",
+      "forgeId": 3,
+      "bakehouseId": 3,
+      "bakehouseSlug": "fix-ci-pipeline",
+      "sourcePath": ".forge/tasks/fix-ci-pipeline.yaml",
+      "archived": false
+    },
+    {
+      "forgeSlug": "harden-crypto-module",
+      "forgeId": 4,
+      "bakehouseId": 4,
+      "bakehouseSlug": "harden-crypto-module",
+      "sourcePath": ".forge/tasks/harden-crypto-module.yaml",
+      "archived": false
+    },
+    {
+      "forgeSlug": "add-zeroize-support",
+      "forgeId": 5,
+      "bakehouseId": 5,
+      "bakehouseSlug": "add-zeroize-support",
+      "sourcePath": ".forge/tasks/add-zeroize-support.yaml",
+      "archived": false
+    },
+    {
+      "forgeSlug": "fix-crate-metadata",
+      "forgeId": 6,
+      "bakehouseId": 6,
+      "bakehouseSlug": "fix-crate-metadata",
+      "sourcePath": ".forge/tasks/done/fix-crate-metadata.yaml",
+      "archived": true
+    },
+    {
+      "forgeSlug": "baseline-test-coverage",
+      "forgeId": 7,
+      "bakehouseId": 7,
+      "bakehouseSlug": "baseline-test-coverage",
+      "sourcePath": ".forge/tasks/baseline-test-coverage.yaml",
+      "archived": false
+    },
+    {
+      "forgeSlug": "upgrade-checkout-action-v6",
+      "forgeId": 8,
+      "bakehouseId": 8,
+      "bakehouseSlug": "upgrade-checkout-action-v6",
+      "sourcePath": ".forge/tasks/upgrade-checkout-action-v6.yaml",
+      "archived": false
+    }
+  ],
+  "tasks": [
+    {
+      "forge": {
+        "id": 1,
+        "slug": "security-hardening",
+        "title": null,
+        "status": "done",
+        "flowState": "active",
+        "priority": "critical",
+        "resolution": "completed",
+        "parent": null,
+        "children": [
+          "baseline-test-coverage",
+          "fix-protocol-injection",
+          "fix-ci-pipeline",
+          "harden-crypto-module",
+          "add-zeroize-support",
+          "fix-crate-metadata",
+          "upgrade-checkout-action-v6"
+        ],
+        "sourcePath": ".forge/tasks/security-hardening.yaml",
+        "archived": false,
+        "artifactPaths": {
+          "intake": ".forge/intake/security-hardening.md",
+          "research": null,
+          "spec": null,
+          "plan": null,
+          "tasks": null,
+          "steps": null,
+          "improve": null
+        }
+      },
+      "bakehouse": {
+        "id": 1,
+        "slug": "security-hardening",
+        "title": "Security Hardening",
+        "phase": "served",
+        "flowState": "terminal",
+        "priority": "p0",
+        "disposition": "open",
+        "orderPath": ".bakehouse/orders/0001-security-hardening"
+      },
+      "warnings": []
+    },
+    {
+      "forge": {
+        "id": 2,
+        "slug": "fix-protocol-injection",
+        "title": null,
+        "status": "done",
+        "flowState": "active",
+        "priority": "critical",
+        "resolution": "completed",
+        "parent": "security-hardening",
+        "children": [],
+        "sourcePath": ".forge/tasks/fix-protocol-injection.yaml",
+        "archived": false,
+        "artifactPaths": {
+          "intake": ".forge/intake/fix-protocol-injection.md",
+          "research": null,
+          "spec": null,
+          "plan": null,
+          "tasks": null,
+          "steps": null,
+          "improve": null
+        }
+      },
+      "bakehouse": {
+        "id": 2,
+        "slug": "fix-protocol-injection",
+        "title": "Fix Protocol Injection",
+        "phase": "served",
+        "flowState": "terminal",
+        "priority": "p0",
+        "disposition": "open",
+        "orderPath": ".bakehouse/orders/0002-fix-protocol-injection"
+      },
+      "warnings": []
+    },
+    {
+      "forge": {
+        "id": 3,
+        "slug": "fix-ci-pipeline",
+        "title": null,
+        "status": "done",
+        "flowState": "active",
+        "priority": "high",
+        "resolution": "completed",
+        "parent": "security-hardening",
+        "children": [],
+        "sourcePath": ".forge/tasks/fix-ci-pipeline.yaml",
+        "archived": false,
+        "artifactPaths": {
+          "intake": ".forge/intake/fix-ci-pipeline.md",
+          "research": null,
+          "spec": null,
+          "plan": null,
+          "tasks": null,
+          "steps": null,
+          "improve": null
+        }
+      },
+      "bakehouse": {
+        "id": 3,
+        "slug": "fix-ci-pipeline",
+        "title": "Fix Ci Pipeline",
+        "phase": "served",
+        "flowState": "terminal",
+        "priority": "p1",
+        "disposition": "open",
+        "orderPath": ".bakehouse/orders/0003-fix-ci-pipeline"
+      },
+      "warnings": []
+    },
+    {
+      "forge": {
+        "id": 4,
+        "slug": "harden-crypto-module",
+        "title": null,
+        "status": "done",
+        "flowState": "active",
+        "priority": "normal",
+        "resolution": "completed",
+        "parent": "security-hardening",
+        "children": [],
+        "sourcePath": ".forge/tasks/harden-crypto-module.yaml",
+        "archived": false,
+        "artifactPaths": {
+          "intake": ".forge/intake/harden-crypto-module.md",
+          "research": ".forge/research/harden-crypto-module.md",
+          "spec": ".forge/specs/harden-crypto-module.md",
+          "plan": ".forge/plans/harden-crypto-module.md",
+          "tasks": ".forge/steps/harden-crypto-module/",
+          "steps": null,
+          "improve": null
+        }
+      },
+      "bakehouse": {
+        "id": 4,
+        "slug": "harden-crypto-module",
+        "title": "Harden Crypto Module",
+        "phase": "served",
+        "flowState": "terminal",
+        "priority": "p2",
+        "disposition": "open",
+        "orderPath": ".bakehouse/orders/0004-harden-crypto-module"
+      },
+      "warnings": []
+    },
+    {
+      "forge": {
+        "id": 5,
+        "slug": "add-zeroize-support",
+        "title": null,
+        "status": "done",
+        "flowState": "active",
+        "priority": "high",
+        "resolution": "completed",
+        "parent": "security-hardening",
+        "children": [],
+        "sourcePath": ".forge/tasks/add-zeroize-support.yaml",
+        "archived": false,
+        "artifactPaths": {
+          "intake": ".forge/intake/add-zeroize-support.md",
+          "research": ".forge/research/add-zeroize-support.md",
+          "spec": ".forge/specs/add-zeroize-support.md",
+          "plan": ".forge/plans/add-zeroize-support.md",
+          "tasks": null,
+          "steps": null,
+          "improve": null
+        }
+      },
+      "bakehouse": {
+        "id": 5,
+        "slug": "add-zeroize-support",
+        "title": "Add Zeroize Support",
+        "phase": "served",
+        "flowState": "terminal",
+        "priority": "p1",
+        "disposition": "open",
+        "orderPath": ".bakehouse/orders/0005-add-zeroize-support"
+      },
+      "warnings": []
+    },
+    {
+      "forge": {
+        "id": 6,
+        "slug": "fix-crate-metadata",
+        "title": null,
+        "status": "done",
+        "flowState": "terminal",
+        "priority": "low",
+        "resolution": "completed",
+        "parent": "security-hardening",
+        "children": [],
+        "sourcePath": ".forge/tasks/done/fix-crate-metadata.yaml",
+        "archived": true,
+        "artifactPaths": {
+          "intake": ".forge/intake/fix-crate-metadata.md",
+          "research": null,
+          "spec": ".forge/specs/fix-crate-metadata.md",
+          "plan": ".forge/plans/fix-crate-metadata.md",
+          "tasks": null,
+          "steps": null,
+          "improve": ".forge/improve/fix-crate-metadata.md"
+        }
+      },
+      "bakehouse": {
+        "id": 6,
+        "slug": "fix-crate-metadata",
+        "title": "Fix Crate Metadata",
+        "phase": "served",
+        "flowState": "terminal",
+        "priority": "p3",
+        "disposition": "open",
+        "orderPath": ".bakehouse/orders/0006-fix-crate-metadata"
+      },
+      "warnings": []
+    },
+    {
+      "forge": {
+        "id": 7,
+        "slug": "baseline-test-coverage",
+        "title": null,
+        "status": "done",
+        "flowState": "active",
+        "priority": "critical",
+        "resolution": "completed",
+        "parent": "security-hardening",
+        "children": [],
+        "sourcePath": ".forge/tasks/baseline-test-coverage.yaml",
+        "archived": false,
+        "artifactPaths": {
+          "intake": ".forge/intake/baseline-test-coverage.md",
+          "research": null,
+          "spec": null,
+          "plan": null,
+          "tasks": null,
+          "steps": null,
+          "improve": null
+        }
+      },
+      "bakehouse": {
+        "id": 7,
+        "slug": "baseline-test-coverage",
+        "title": "Baseline Test Coverage",
+        "phase": "served",
+        "flowState": "terminal",
+        "priority": "p0",
+        "disposition": "open",
+        "orderPath": ".bakehouse/orders/0007-baseline-test-coverage"
+      },
+      "warnings": []
+    },
+    {
+      "forge": {
+        "id": 8,
+        "slug": "upgrade-checkout-action-v6",
+        "title": null,
+        "status": "done",
+        "flowState": "active",
+        "priority": "medium",
+        "resolution": "completed",
+        "parent": "security-hardening",
+        "children": [],
+        "sourcePath": ".forge/tasks/upgrade-checkout-action-v6.yaml",
+        "archived": false,
+        "artifactPaths": {
+          "intake": null,
+          "research": null,
+          "spec": null,
+          "plan": null,
+          "tasks": null,
+          "steps": null,
+          "improve": null
+        }
+      },
+      "bakehouse": {
+        "id": 8,
+        "slug": "upgrade-checkout-action-v6",
+        "title": "Upgrade Checkout Action V6",
+        "phase": "served",
+        "flowState": "terminal",
+        "priority": "p2",
+        "disposition": "open",
+        "orderPath": ".bakehouse/orders/0008-upgrade-checkout-action-v6"
+      },
+      "warnings": [
+        "unknown-priority"
+      ]
+    }
+  ]
+}

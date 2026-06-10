@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "orderId": 26,
+  "updatedAt": "2026-06-10T04:29:57Z",
+  "acceptanceCriteria": [
+    {
+      "id": "AC-001",
+      "summary": "The while-let-on-iterator loop is replaced with an idiomatic for loop.",
+      "status": "passed"
+    },
+    {
+      "id": "AC-002",
+      "summary": "The raw comma counting behavior remains unchanged.",
+      "status": "passed"
+    },
+    {
+      "id": "AC-003",
+      "summary": "cargo clippy --all-targets --all-features -- -D warnings passes.",
+      "status": "passed"
+    }
+  ],
+  "gates": [
+    {
+      "id": "cook-test-cleanup",
+      "phase": "cook",
+      "category": "implementation",
+      "status": "passed",
+      "required": true,
+      "summary": "Iterator loop cleanup implemented.",
+      "evidence": ["05-cook.md", "proof/tests.md"],
+      "checkedAt": "2026-06-10T04:29:57Z",
+      "checkedBy": "manual"
+    },
+    {
+      "id": "taste-tests",
+      "phase": "taste",
+      "category": "test",
+      "status": "passed",
+      "required": true,
+      "summary": "Property test and clippy passed.",
+      "evidence": ["proof/tests.md", "06-taste.md"],
+      "checkedAt": "2026-06-10T04:29:57Z",
+      "checkedBy": "manual"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "E-001-tests",
+      "acceptanceCriterionIds": ["AC-001", "AC-002", "AC-003"],
+      "kind": "test",
+      "path": "proof/tests.md",
+      "summary": "Targeted property test and all-targets clippy passed.",
+      "recordedAt": "2026-06-10T04:29:57Z",
+      "status": "passed"
+    }
+  ],
+  "cookSlices": []
+}

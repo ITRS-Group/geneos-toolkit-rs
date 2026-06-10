@@ -1,0 +1,1 @@
+{"ts":"2026-06-10T03:39:03.181Z","type":"order.created","summary":"Fix code quality smaller item: a dataview unit test asserts directly on the private headlines field instead of using a public accessor. Update the test to use public API such as headline_order() or headline()."}

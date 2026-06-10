@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "orderId": 11,
+  "updatedAt": "2026-06-10T04:39:30Z",
+  "acceptanceCriteria": [
+    {
+      "id": "AC-001",
+      "summary": "Display for KeyFileFormatError no longer prints arbitrary inner message content.",
+      "status": "passed"
+    },
+    {
+      "id": "AC-002",
+      "summary": "Debug for KeyFileFormatError remains redacted.",
+      "status": "passed"
+    },
+    {
+      "id": "AC-003",
+      "summary": "Existing key-file parse tests are updated to assert variants or safe messages rather than relying on potentially sensitive Display text.",
+      "status": "passed"
+    },
+    {
+      "id": "AC-004",
+      "summary": "User-facing errors remain understandable enough to identify a key-file format problem without leaking file contents.",
+      "status": "passed"
+    },
+    {
+      "id": "AC-005",
+      "summary": "cargo test --features secure-env and cargo clippy --all-targets --all-features -- -D warnings pass.",
+      "status": "passed"
+    }
+  ],
+  "gates": [
+    {
+      "id": "cook-implementation",
+      "phase": "cook",
+      "category": "implementation",
+      "status": "passed",
+      "required": true,
+      "summary": "Scoped implementation recorded.",
+      "evidence": [
+        "05-cook.md"
+      ],
+      "checkedAt": "2026-06-10T04:39:30Z",
+      "checkedBy": "manual"
+    },
+    {
+      "id": "taste-validation",
+      "phase": "taste",
+      "category": "test",
+      "status": "passed",
+      "required": true,
+      "summary": "Order-specific and full validation passed.",
+      "evidence": [
+        "proof/tests.md",
+        "06-taste.md"
+      ],
+      "checkedAt": "2026-06-10T04:39:30Z",
+      "checkedBy": "manual"
+    },
+    {
+      "id": "taste-security",
+      "phase": "taste",
+      "category": "security",
+      "status": "passed",
+      "required": true,
+      "summary": "Security audit passed with 0 findings.",
+      "evidence": [
+        "proof/security.md",
+        ".bakehouse/security-audit-20260610-044232.md"
+      ],
+      "checkedAt": "2026-06-10T04:39:30Z",
+      "checkedBy": "manual"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "E-001-validation",
+      "acceptanceCriterionIds": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005"
+      ],
+      "kind": "test",
+      "path": "proof/tests.md",
+      "summary": "Order-specific and full validation passed.",
+      "recordedAt": "2026-06-10T04:39:30Z",
+      "status": "passed"
+    },
+    {
+      "id": "E-002-review",
+      "acceptanceCriterionIds": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005"
+      ],
+      "kind": "review",
+      "path": "proof/review.md",
+      "summary": "Scoped diff reviewed against acceptance criteria.",
+      "recordedAt": "2026-06-10T04:39:30Z",
+      "status": "passed"
+    },
+    {
+      "id": "E-003-security",
+      "acceptanceCriterionIds": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005"
+      ],
+      "kind": "security",
+      "path": "proof/security.md",
+      "summary": "Security audit passed with 0 findings.",
+      "recordedAt": "2026-06-10T04:39:30Z",
+      "status": "passed"
+    }
+  ],
+  "cookSlices": []
+}

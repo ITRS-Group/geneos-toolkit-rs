@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "id": 10,
+  "slug": "redact-notunicode-environment-errors",
+  "title": "Redact NotUnicode environment errors",
+  "kind": "order",
+  "phase": "served",
+  "phaseIndex": 8,
+  "flowState": "terminal",
+  "priority": "p1",
+  "batchId": null,
+  "disposition": "open",
+  "abandonReason": null,
+  "abandonRefs": [],
+  "abandonNote": null,
+  "abandonedAt": null,
+  "blockedReason": null,
+  "createdAt": "2026-06-10T03:39:02.725Z",
+  "updatedAt": "2026-06-10T04:29:57Z",
+  "resume": {
+    "command": "/status 10",
+    "reason": "NotUnicode env error redaction served with full validation",
+    "artifact": "08-served.md",
+    "requiredInputs": [
+      "08-served.md",
+      "06-taste.md"
+    ]
+  },
+  "artifacts": {
+    "order": "01-order.md",
+    "measure": "02-measure.md",
+    "recipe": "03-recipe.md",
+    "prep": "04-prep.md",
+    "cook": "05-cook.md",
+    "taste": "06-taste.md",
+    "finish": "07-finish.md",
+    "served": "08-served.md"
+  },
+  "dependsOn": [],
+  "kickbacks": []
+}

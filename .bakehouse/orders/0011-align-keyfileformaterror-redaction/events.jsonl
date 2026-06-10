@@ -1,0 +1,1 @@
+{"ts":"2026-06-10T03:39:02.741Z","type":"order.created","summary":"Fix security finding S3: EnvError::KeyFileFormatError Debug redacts the inner message but Display prints it verbatim. Current messages are library-generated, but the redaction posture should be consistent and future-safe."}

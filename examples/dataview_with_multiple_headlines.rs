@@ -8,9 +8,9 @@ fn main() -> ! {
     // added to the Dataview.
     let dataview = Dataview::builder()
         .set_row_header("Process")
-        .add_headline("TotalProcesses", 50)
-        .add_headline("TotalCache", 300)
-        .add_headline("TotalMemory", 1000)
+        .add_headline("TotalProcesses", "50")
+        .add_headline("TotalCache", "300")
+        .add_headline("TotalMemory", "1000")
         .add_value("Process 1", "Status", "OK")
         .build();
 
