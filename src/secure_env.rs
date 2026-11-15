@@ -23,7 +23,7 @@ use cipher::block_padding::Pkcs7;
 use cipher::{BlockDecryptMut, KeyIvInit};
 use hex::FromHex;
 use std::fs::File;
-use std::io::{self, BufRead, BufReader};
+use std::io::{self, BufRead, BufReader, Read};
 use zeroize::Zeroizing;
 
 const MAX_KEY_FILE_SIZE: u64 = 1024;
@@ -50,7 +50,9 @@ fn parse_key_file_with_opener(
 
 fn parse_open_key_file(file: File) -> Result<KeyComponents, EnvError> {
     validate_key_file_metadata(&file)?;
-    let reader = BufReader::new(file);
+    // The size check above trusts the file's length, which a FIFO or device
+    // reports as 0; the read itself is capped so neither can grow memory.
+    let reader = BufReader::new(file.take(MAX_KEY_FILE_SIZE));
 
     // The salt was used only to derive the key and is optional: cordial
     // writes none (cordial `pkg/config/crypto.go:97`) and the Gateway reads
@@ -351,6 +353,61 @@ iv =6067918EA5841B871C5D27032607B02F
             let plain = get_secure_var("GT_CORDIAL_SECRET", path.to_str().unwrap()).unwrap();
             assert_eq!(&*plain, CORDIAL_DECRYPTED);
         });
+    }
+
+    #[test]
+    fn test_parse_key_file_trims_padded_values() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("padded.aes");
+        write_key_file(
+            &path,
+            "key = 1D723925982A1CCD88FC625ECEFCA9D08732AC71E088B4D839FBC4DDD9CF10C0  \n\tiv = 6067918EA5841B871C5D27032607B02F \n",
+        );
+
+        let plain = decrypt(CORDIAL_ENCRYPTED, path.to_str().unwrap()).unwrap();
+        assert_eq!(&*plain, CORDIAL_DECRYPTED);
+    }
+
+    #[test]
+    fn test_parse_key_file_duplicate_salt() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("two-salts.aes");
+        write_key_file(&path, &format!("salt=720A0C8679286643\n{GATEWAY_KEY_FILE}"));
+
+        let err = parse_key_file(path.to_str().unwrap()).unwrap_err();
+        assert_key_file_format_error(&err, "duplicate salt in key file");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_parse_key_file_stream_read_is_capped() {
+        use std::io::Write as _;
+        use std::os::unix::fs::PermissionsExt;
+        use std::process::Command;
+
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("fifo");
+        let made = Command::new("mkfifo").arg(&path).status().unwrap();
+        assert!(made.success());
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+
+        // A valid key file behind more blank lines than the cap allows: read
+        // in full it parses, so only a capped read fails here.
+        let writer_path = path.clone();
+        let writer = std::thread::spawn(move || {
+            let mut fifo = std::fs::OpenOptions::new()
+                .write(true)
+                .open(writer_path)
+                .unwrap();
+            let padding = vec![b'\n'; 4096];
+            let _ = fifo
+                .write_all(&padding)
+                .and_then(|()| fifo.write_all(CORDIAL_KEY_FILE.as_bytes()));
+        });
+
+        let err = parse_key_file(path.to_str().unwrap()).unwrap_err();
+        assert_key_file_format_error(&err, "incomplete key file");
+        writer.join().unwrap();
     }
 
     #[test]
