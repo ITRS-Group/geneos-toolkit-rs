@@ -42,6 +42,11 @@ geneos-toolkit = "0.4"
 - Rows/columns keep insertion order by default; optional sorting is available via
   `sort_rows()`, `sort_rows_by(...)`, or `sort_rows_with(...)`.
 - Headlines are ordered by the order in which they were added to the Dataview.
+- Commas in cells, row names and column names are escaped as `\,`, which the
+  Netprobe turns back into commas. Headline values are written as they are:
+  the Netprobe takes everything after the first comma of a `<!>name,value`
+  line verbatim, so an escaped comma would show with its backslash. A comma
+  in a headline name fails `build()` with `InvalidHeadlineName`.
 - Environment variables: `get_var`/`get_var_or` always available; secure helpers (`get_secure_var`, `decrypt`) only with `secure-env`.
 - Secure variables require a key file path when `secure-env` is enabled.
 

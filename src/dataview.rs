@@ -8,6 +8,10 @@ pub enum DataviewError {
     MissingRowHeader,
     MissingValue,
     EmptyName(String),
+    /// A headline name contains a comma. The Netprobe ends a headline's name
+    /// at the first comma and does not unescape `\,`, so the name cannot be
+    /// written.
+    InvalidHeadlineName(String),
 }
 
 impl fmt::Display for DataviewError {
@@ -16,6 +20,12 @@ impl fmt::Display for DataviewError {
             DataviewError::MissingRowHeader => write!(f, "The Dataview must have a row header"),
             DataviewError::MissingValue => write!(f, "The Dataview must have at least one value"),
             DataviewError::EmptyName(field) => write!(f, "Empty {field} name is not allowed"),
+            DataviewError::InvalidHeadlineName(name) => {
+                write!(
+                    f,
+                    "Headline name {name:?} contains a comma, which Geneos cannot show"
+                )
+            }
         }
     }
 }
@@ -176,6 +186,30 @@ impl GeneosEscaping for str {
     }
 }
 
+/// Escapes a headline name or value for a `<!>name,value` line.
+///
+/// The Netprobe's Toolkit plugin reads a headline line verbatim: the name is
+/// the text between `<!>` and the first comma, the value everything after
+/// that comma, both trimmed, and neither `\,` nor `\\` is unescaped
+/// (geneos `Source/EMF2/plug-ins/toolkit/toolkit.cpp:855`, commit
+/// eeca78cda5; only table rows are split on unescaped commas and have `\,`
+/// replaced, `toolkit.cpp:858-868`). Commas and backslashes therefore pass
+/// through unchanged, and only the characters that would end the line are
+/// escaped. A `<!>` inside the line is harmless: the Netprobe looks for it
+/// at the start of a line only.
+fn escape_headline(s: &str) -> String {
+    let mut output = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '\n' => output.push_str("\\n"),
+            '\r' => output.push_str("\\r"),
+            '\0' => output.push_str("\\0"),
+            c => output.push(c),
+        }
+    }
+    output
+}
+
 fn write_header_row(
     f: &mut fmt::Formatter<'_>,
     row_header: &str,
@@ -195,12 +229,7 @@ fn write_headlines(
 ) -> fmt::Result {
     for name in headline_order {
         if let Some(value) = headlines.get(name) {
-            writeln!(
-                f,
-                "<!>{},{}",
-                name.escape_nasty_chars(),
-                value.escape_nasty_chars()
-            )?;
+            writeln!(f, "<!>{},{}", escape_headline(name), escape_headline(value))?;
         }
     }
     Ok(())
@@ -490,6 +519,9 @@ impl DataviewBuilder {
                 if key.is_empty() {
                     return Err(DataviewError::EmptyName("headline".into()));
                 }
+                if key.contains(',') {
+                    return Err(DataviewError::InvalidHeadlineName(key.clone()));
+                }
             }
         }
 
@@ -634,14 +666,14 @@ queue3,7\\,331,45\\,000,0.16,online";
         // Test other special characters
         let dataview_special = DataviewBuilder::new()
             .set_row_header("special")
-            .add_headline("special,headline", "headline value with, comma")
+            .add_headline("special_headline", "headline value with, comma")
             .add_value("special_case", "state", "testing: \"quotes\" & <symbols>")
             .add_value("special_case", "data", "multi-line\ntext")
             .build()?;
 
         let output = dataview_special.to_string();
         assert!(output.contains("special"));
-        assert!(output.contains("<!>special\\,headline,headline value with\\, comma"));
+        assert!(output.contains("<!>special_headline,headline value with, comma"));
         assert!(output.contains("testing: \"quotes\" & <symbols>"));
         assert!(output.contains("multi-line\\ntext"));
 
@@ -871,7 +903,7 @@ queue3,7\\,331,45\\,000,0.16,online";
         let lines: Vec<&str> = output.lines().collect();
 
         assert_eq!(lines[0], "path\\\\id,col\\\\a");
-        assert_eq!(lines[1], "<!>dir,C:\\\\Users\\\\test");
+        assert_eq!(lines[1], "<!>dir,C:\\Users\\test");
         assert_eq!(lines[2], "row\\\\1,val\\\\ue");
 
         Ok(())
@@ -1001,6 +1033,77 @@ cache,degraded,45,7";
         // <!> only matters at string start — mid-string is harmless
         let escaped = "some<!>text".escape_nasty_chars();
         assert_eq!(escaped, "some<!>text");
+    }
+
+    // === Headlines as the Netprobe reads them ===
+
+    /// Reads a headline line as the Netprobe's Toolkit plugin does
+    /// (geneos `Source/EMF2/plug-ins/toolkit/toolkit.cpp:855`, commit
+    /// eeca78cda5): the name is the text between `<!>` and the first comma,
+    /// the value everything after that comma, both trimmed, with no
+    /// unescaping of any kind.
+    fn netprobe_headline(line: &str) -> (String, String) {
+        let rest = line.split_once("<!>").map_or("", |(_, r)| r);
+        let name = rest.split_once(',').map_or(rest, |(n, _)| n);
+        let value = line.split_once(',').map_or("", |(_, v)| v);
+        (name.trim().to_string(), value.trim().to_string())
+    }
+
+    fn headline_line(name: &str, value: &str) -> Result<String, DataviewError> {
+        let output = Dataview::builder()
+            .set_row_header("id")
+            .add_headline(name, value)
+            .add_value("r1", "c1", "v1")
+            .build()?
+            .to_string();
+        Ok(output.lines().nth(1).unwrap_or_default().to_string())
+    }
+
+    #[test]
+    fn test_headline_value_with_comma_reaches_netprobe_unchanged() -> Result<(), DataviewError> {
+        let line = headline_line("uptime", "1 day, 20:23:58")?;
+        assert_eq!(line, "<!>uptime,1 day, 20:23:58");
+        assert_eq!(
+            netprobe_headline(&line),
+            ("uptime".to_string(), "1 day, 20:23:58".to_string())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_headline_value_with_backslash_reaches_netprobe_unchanged() -> Result<(), DataviewError>
+    {
+        let line = headline_line("dir", "C:\\Users\\a,b")?;
+        assert_eq!(netprobe_headline(&line).1, "C:\\Users\\a,b");
+        Ok(())
+    }
+
+    #[test]
+    fn test_headline_value_newlines_stay_on_one_line() -> Result<(), DataviewError> {
+        let output = Dataview::builder()
+            .set_row_header("id")
+            .add_headline("motd", "line one\n<!>injected,x\r")
+            .add_value("r1", "c1", "v1")
+            .build()?
+            .to_string();
+        let lines: Vec<&str> = output.lines().collect();
+        assert_eq!(
+            lines.len(),
+            3,
+            "a headline value must not add lines: {output:?}"
+        );
+        assert_eq!(lines[1], "<!>motd,line one\\n<!>injected,x\\r");
+        Ok(())
+    }
+
+    #[test]
+    fn test_headline_name_with_comma_is_rejected() {
+        let result = Dataview::builder()
+            .set_row_header("id")
+            .add_headline("a,b", "v")
+            .add_value("r1", "c1", "v1")
+            .build();
+        assert!(matches!(result, Err(DataviewError::InvalidHeadlineName(ref n)) if n == "a,b"));
     }
 
     #[test]
@@ -1402,12 +1505,14 @@ mod property_tests {
             // Should be on one line
             prop_assert!(!headline_line.contains('\n'));
 
-            // Should have exactly one unescaped comma separating key and value
-            let raw_commas = headline_line.match_indices(',')
-                .filter(|(idx, _)| *idx == 0 || headline_line.as_bytes()[idx-1] != b'\\')
-                .count();
-
-            prop_assert_eq!(raw_commas, 1, "Headline should have exactly 1 separator comma");
+            // The Netprobe reads the name up to the first comma and the
+            // value after it, verbatim (toolkit.cpp:855).
+            let (name, read_value) = headline_line
+                .strip_prefix("<!>")
+                .and_then(|rest| rest.split_once(','))
+                .expect("Should have a separator comma");
+            prop_assert_eq!(name, key.as_str());
+            prop_assert_eq!(read_value, value.replace('\n', "\\n").replace('\r', "\\r"));
         }
     }
 }
