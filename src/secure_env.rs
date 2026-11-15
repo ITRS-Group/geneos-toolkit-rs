@@ -1,3 +1,22 @@
+//! Decrypting Geneos `+encs+` values in a Toolkit script.
+//!
+//! The Netprobe hands a Toolkit sampler's secure environment variables to the
+//! script still encrypted: it copies each variable's `stdAES` value into the
+//! environment as it is (geneos `Source/EMF2/plug-ins/toolkit/toolkit.cpp`,
+//! `parseAdditionalEnvironmentVars` and `prepareEnvironment`, commit
+//! eeca78cda5), and the Toolkit plugin documentation tells the script to
+//! decrypt the value itself. The script therefore needs the Gateway's AES
+//! key file, readable by the Netprobe's user, and reads the variable with
+//! [`get_secure_var`] or [`decrypt`]. Ordinary environment variables whose
+//! value is a password are different: the Netprobe decrypts those before it
+//! starts the script, so they arrive as plain text and pass through
+//! [`decrypt`] unchanged.
+//!
+//! Key files are read as the Gateway reads them: `key` and `iv` lines, names
+//! and values trimmed, so `iv =<hex>` (the layout of OpenSSL, the Gateway's
+//! own test key file and cordial's `geneos aes new`) works, and the `salt`
+//! line is optional (cordial writes none).
+
 use crate::env::{EnvError, get_var, is_encrypted};
 use cbc::Decryptor;
 use cipher::block_padding::Pkcs7;
@@ -9,7 +28,8 @@ use zeroize::Zeroizing;
 
 const MAX_KEY_FILE_SIZE: u64 = 1024;
 
-type KeyComponents = (Zeroizing<String>, Zeroizing<String>, Zeroizing<String>);
+/// The key and IV from a key file, as hex.
+type KeyComponents = (Zeroizing<String>, Zeroizing<String>);
 
 fn parse_key_file(path: &str) -> Result<KeyComponents, EnvError> {
     parse_key_file_with_opener(path, open_key_file)
@@ -32,7 +52,11 @@ fn parse_open_key_file(file: File) -> Result<KeyComponents, EnvError> {
     validate_key_file_metadata(&file)?;
     let reader = BufReader::new(file);
 
-    let mut salt: Option<Zeroizing<String>> = None;
+    // The salt was used only to derive the key and is optional: cordial
+    // writes none (cordial `pkg/config/crypto.go:97`) and the Gateway reads
+    // only `key` and `iv` (geneos
+    // `Source/EMF2/lib/encryption/src/AESEncryptorDecryptor.cpp:533-552`).
+    let mut salt_seen = false;
     let mut key: Option<Zeroizing<String>> = None;
     let mut iv: Option<Zeroizing<String>> = None;
 
@@ -44,14 +68,19 @@ fn parse_open_key_file(file: File) -> Result<KeyComponents, EnvError> {
             continue;
         }
 
-        match line.trim().split_once('=') {
-            Some(("salt", value)) => {
-                if salt.is_some() {
+        // Names and values may be padded: OpenSSL, the Gateway's test key
+        // file and cordial all write `iv =<hex>`.
+        let entry = line
+            .split_once('=')
+            .map(|(name, value)| (name.trim(), value.trim()));
+        match entry {
+            Some(("salt", _)) => {
+                if salt_seen {
                     return Err(EnvError::KeyFileFormatError(
                         "duplicate salt in key file".to_string(),
                     ));
                 }
-                salt = Some(Zeroizing::new(value.to_string()));
+                salt_seen = true;
             }
             Some(("key", value)) => {
                 if key.is_some() {
@@ -84,12 +113,10 @@ fn parse_open_key_file(file: File) -> Result<KeyComponents, EnvError> {
         }
     }
 
-    let salt =
-        salt.ok_or_else(|| EnvError::KeyFileFormatError("incomplete key file".to_string()))?;
     let key = key.ok_or_else(|| EnvError::KeyFileFormatError("incomplete key file".to_string()))?;
     let iv = iv.ok_or_else(|| EnvError::KeyFileFormatError("incomplete key file".to_string()))?;
 
-    Ok((salt, key, iv))
+    Ok((key, iv))
 }
 
 fn validate_key_file_metadata(file: &File) -> Result<(), EnvError> {
@@ -136,9 +163,7 @@ pub fn decrypt(value: &str, key_file: &str) -> Result<Zeroizing<String>, EnvErro
             .map_err(|_| EnvError::DecryptionFailed("decryption failed".to_string()))?,
     );
 
-    // Salt was consumed during PBKDF key derivation by Geneos Gateway;
-    // only key and IV are needed for decryption.
-    let (_, key_hex, iv_hex) = parse_key_file(key_file)?;
+    let (key_hex, iv_hex) = parse_key_file(key_file)?;
 
     let key_bytes = Zeroizing::new(
         Vec::from_hex(&*key_hex)
@@ -285,6 +310,49 @@ iv=472A3557ADDD2525AD4E555738636A67
         assert!(!formatted.contains("token"));
     }
 
+    // A throwaway key file written by cordial's `KeyValues.Write`
+    // (cordial `pkg/config/crypto.go:97`, commit fa251054): no salt line,
+    // and `iv` followed by a space before `=`, as OpenSSL prints it. The
+    // value was encoded with cordial's `EncodeString` and checked with
+    // `openssl enc -d -aes-256-cbc`.
+    const CORDIAL_KEY_FILE: &str =
+        "key=1D723925982A1CCD88FC625ECEFCA9D08732AC71E088B4D839FBC4DDD9CF10C0
+iv =6067918EA5841B871C5D27032607B02F
+";
+    const CORDIAL_ENCRYPTED: &str =
+        "+encs+4095E1FCB41003CDA03CEBBF71F6ED7F907705B9A0C38924F37CD30F9BFD0488";
+    const CORDIAL_DECRYPTED: &str = "throwaway, test secret";
+
+    // The same key in the layout of the Gateway's own test key file
+    // (geneos `Source/EMF2/lib/encryption/unittests/goodkeyfile.aes`,
+    // commit eeca78cda5), salt line included.
+    const GATEWAY_KEY_FILE: &str = "salt=720A0C8679286643
+key=1D723925982A1CCD88FC625ECEFCA9D08732AC71E088B4D839FBC4DDD9CF10C0
+iv =6067918EA5841B871C5D27032607B02F
+";
+
+    #[test]
+    fn test_decrypt_with_cordial_key_file() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("cordial.aes");
+        write_key_file(&path, CORDIAL_KEY_FILE);
+
+        let plain = decrypt(CORDIAL_ENCRYPTED, path.to_str().unwrap()).unwrap();
+        assert_eq!(&*plain, CORDIAL_DECRYPTED);
+    }
+
+    #[test]
+    fn test_get_secure_var_with_gateway_key_file() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("gateway.aes");
+        write_key_file(&path, GATEWAY_KEY_FILE);
+
+        temp_env::with_var("GT_CORDIAL_SECRET", Some(CORDIAL_ENCRYPTED), || {
+            let plain = get_secure_var("GT_CORDIAL_SECRET", path.to_str().unwrap()).unwrap();
+            assert_eq!(&*plain, CORDIAL_DECRYPTED);
+        });
+    }
+
     #[test]
     fn test_parse_key_file() {
         let dir = tempdir().unwrap();
@@ -294,8 +362,7 @@ iv=472A3557ADDD2525AD4E555738636A67
 
         let result = parse_key_file(key_file_path.to_str().unwrap());
         assert!(result.is_ok());
-        let (salt, key, iv) = result.unwrap();
-        assert_eq!(&*salt, "89A6A795C9CCECB5");
+        let (key, iv) = result.unwrap();
         assert_eq!(
             &*key,
             "26D6EDD53A0AFA8FA1AA3FBCD2FFF2A0BF4809A4E04511F629FC732C2A42A8FC"
@@ -434,8 +501,7 @@ iv=472A3557ADDD2525AD4E555738636A67
             "iv=472A3557ADDD2525AD4E555738636A67\nkey=26D6EDD53A0AFA8FA1AA3FBCD2FFF2A0BF4809A4E04511F629FC732C2A42A8FC\nsalt=89A6A795C9CCECB5",
         );
 
-        let (salt, key, iv) = parse_key_file(key_file_path.to_str().unwrap()).unwrap();
-        assert_eq!(&*salt, "89A6A795C9CCECB5");
+        let (key, iv) = parse_key_file(key_file_path.to_str().unwrap()).unwrap();
         assert_eq!(
             &*key,
             "26D6EDD53A0AFA8FA1AA3FBCD2FFF2A0BF4809A4E04511F629FC732C2A42A8FC"
@@ -476,8 +542,7 @@ iv=472A3557ADDD2525AD4E555738636A67
 
         let result = parse_key_file(key_file_path.to_str().unwrap());
         assert!(result.is_ok());
-        let (salt, key, iv) = result.unwrap();
-        assert_eq!(&*salt, "89A6A795C9CCECB5");
+        let (key, iv) = result.unwrap();
         assert_eq!(
             &*key,
             "26D6EDD53A0AFA8FA1AA3FBCD2FFF2A0BF4809A4E04511F629FC732C2A42A8FC"
@@ -638,8 +703,7 @@ iv=472A3557ADDD2525AD4E555738636A67
             Ok(file)
         });
 
-        let (salt, key, iv) = result.expect("expected parser to use the opened descriptor");
-        assert_eq!(&*salt, "89A6A795C9CCECB5");
+        let (key, iv) = result.expect("expected parser to use the opened descriptor");
         assert_eq!(
             &*key,
             "26D6EDD53A0AFA8FA1AA3FBCD2FFF2A0BF4809A4E04511F629FC732C2A42A8FC"
