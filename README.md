@@ -24,10 +24,10 @@ Add the following to your `Cargo.toml`:
 ```toml
 # Lean default (no secure env, zero third-party runtime dependencies)
 [dependencies]
-geneos-toolkit = "0.4"
+geneos-toolkit = "0.5"
 
 # Enable secure env helpers (adds crypto dependencies)
-# geneos-toolkit = { version = "0.4", features = ["secure-env"] }
+# geneos-toolkit = { version = "0.5", features = ["secure-env"] }
 ```
 
 ## Usage
@@ -180,7 +180,7 @@ Enable the `secure-env` feature to add the secure helpers:
 
 ```toml
 [dependencies]
-geneos-toolkit = { version = "0.4", features = ["secure-env"] }
+geneos-toolkit = { version = "0.5", features = ["secure-env"] }
 ```
 
 This feature gates `decrypt`, `get_secure_var`, and related helpers.
@@ -202,6 +202,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 - Without `secure-env`, encrypted values (`+encs+`) make `get_var`/`get_var_or` return `MissingSecureEnvSupport`, and the secure helpers are not exposed.
+
+### Migrating from 0.4.x to 0.5.0
+
+Headline lines now print as the Netprobe reads them.
+
+- **Headline values** keep their commas and backslashes as they are. The
+  Netprobe takes everything after the first comma of a `<!>name,value` line
+  verbatim, so 0.4 showed `1 day\, 20:23:58` where 0.5 shows
+  `1 day, 20:23:58`. Remove any workaround that stripped the backslash.
+- **Headline names** containing a comma now make `build()` return
+  `DataviewError::InvalidHeadlineName`. The Netprobe ends a name at the first
+  comma, so such a name never displayed correctly. Rename the headline.
+- **Key files** written by cordial (`key=` and `iv =` lines, no salt) and by
+  the Gateway are now read; 0.4 rejected them with `KeyFileFormatError`.
 
 ### Migrating from 0.3.x to 0.4.0
 
